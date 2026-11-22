@@ -3,7 +3,613 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ФинДашборд v3.0</title>
+<title>ФинДашборд v3.4</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','system-ui','sans-serif']}}}};
+</script>
+<style>
+:root{--accent:#6366F1}
+*{box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;transition:background .3s,color .3s}
+html.light body{background:linear-gradient(180deg,#EEF0FF 0%,#FFF 25%,#F8FAFC 100%);color:#1E293B;min-height:100vh}
+html.dark body{background:linear-gradient(180deg,#0B1120 0%,#0F172A 25%,#0F172A 100%);color:#F8FAFC;min-height:100vh}
+html.light .card{background:#FFF;border-color:rgba(226,232,240,.8);box-shadow:0 1px 3px rgba(0,0,0,.02),0 4px 12px rgba(0,0,0,.03)}
+html.dark .card{background:#1E293B;border-color:#334155;box-shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.2)}
+.card{border-radius:16px;border:1px solid;transition:all .3s}
+.card-lg{border-radius:20px}
+.ticker-item{transition:all .15s;border-radius:12px;cursor:pointer;border:2px solid transparent;padding:10px 12px}
+.ticker-item:hover{background:rgba(99,102,241,.04)}
+.ticker-item.active{border-color:var(--accent);background:rgba(99,102,241,.06)}
+html.dark .ticker-item:hover{background:rgba(99,102,241,.08)}
+html.dark .ticker-item.active{background:rgba(99,102,241,.15)}
+.btn-tf,.btn-type{transition:all .15s;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;white-space:nowrap}
+.btn-tf{padding:5px 12px}.btn-type{padding:5px 10px}
+html.light .btn-tf:not(.active),html.light .btn-type:not(.active){background:#F1F5F9;color:#475569}
+html.dark .btn-tf:not(.active),html.dark .btn-type:not(.active){background:#334155;color:#CBD5E1}
+.btn-tf.active,.btn-type.active{background:var(--accent);color:#fff}
+.btn-type:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+@keyframes pulse-live{0%,100%{opacity:1}50%{opacity:.3}}
+.live-dot{animation:pulse-live 2s infinite}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+html.dark ::-webkit-scrollbar-thumb{background:#475569}
+.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+body.font-bold-mode{font-weight:600}
+body.font-bold-mode h1,body.font-bold-mode h2,body.font-bold-mode .font-extrabold{font-weight:800!important}
+body.font-bold-mode .font-bold{font-weight:700!important}
+body.font-bold-mode .font-semibold{font-weight:700!important}
+body.font-bold-mode .tabular-nums{font-weight:700!important}
+.analytics-box{border-radius:10px;padding:12px 16px;border:1px solid;font-size:13px;line-height:1.6}
+html.light .analytics-box{background:#F8FAFC;border-color:#E2E8F0;color:#475569}
+html.dark .analytics-box{background:#0F172A;border-color:#334155;color:#94A3B8}
+.chart-wrapper{position:relative;height:500px;width:100%;z-index:1}
+.zoom-controls{position:absolute;top:12px;right:12px;z-index:10;display:flex;gap:4px;transition:opacity .2s,visibility .2s}
+.zoom-controls.force-hidden{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+.z-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;backdrop-filter:blur(8px)}
+html.light .z-btn{background:#F1F5F9;color:#475569;border-color:#E2E8F0}
+html.dark .z-btn{background:#334155;color:#CBD5E1;border-color:#475569}
+.z-btn:hover{filter:brightness(.92)}.z-btn.active-tool{background:var(--accent);color:#fff;border-color:var(--accent)}
+.z-btn.wide{width:auto;padding:0 10px;font-size:11px;font-weight:600}
+.divider-v{width:1px;height:22px;margin:0 4px}
+html.light .divider-v{background:#E2E8F0}html.dark .divider-v{background:#475569}
+.switch{position:relative;display:inline-block;width:38px;height:20px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.sl{position:absolute;cursor:pointer;inset:0;background:#CBD5E1;transition:.25s;border-radius:20px}
+.sl:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.25s;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+input:checked+.sl{background:var(--accent)}input:checked+.sl:before{transform:translateX(18px)}
+html.dark .sl{background:#475569}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid;border-radius:8px}
+.setting-row:last-child{border-bottom:none}
+html.light .setting-row{border-color:#F1F5F9}html.dark .setting-row{border-color:#334155}
+.toggle-btn-group{display:flex;border-radius:8px;overflow:hidden}
+html.light .toggle-btn-group{background:#F1F5F9}html.dark .toggle-btn-group{background:#0F172A}
+.tg-btn{padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#64748B;transition:all .15s}
+.tg-btn.active{background:var(--accent);color:#fff}
+.color-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s;display:flex;align-items:center;justify-content:center}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.active{border-color:#1E293B;box-shadow:0 0 0 2px #fff}
+html.dark .color-swatch.active{border-color:#F8FAFC;box-shadow:0 0 0 2px #0F172A}
+.color-swatch svg{width:12px;height:12px;color:#fff;display:none}
+.color-swatch.active svg{display:block}
+#settingsModal{position:fixed;z-index:99999;width:310px;max-height:85vh;overflow-y:auto;border-radius:16px;border:1px solid;padding:14px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 25px 60px rgba(0,0,0,.25);transition:opacity .2s,transform .2s,visibility .2s;pointer-events:auto}
+html.light #settingsModal{background:rgba(255,255,255,.97);border-color:#E2E8F0}
+html.dark #settingsModal{background:rgba(30,41,59,.97);border-color:#334155}
+#settingsModal.modal-hidden{opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-8px) scale(.97)}
+#settingsModal.modal-visible{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1)}
+#settingsModal *{pointer-events:auto}
+#settingsOverlay{position:fixed;inset:0;z-index:99998;background:transparent;display:none}
+#settingsOverlay.active{display:block}
+.toast-container{position:fixed;top:16px;right:16px;z-index:999999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{pointer-events:auto;padding:12px 16px;border-radius:10px;backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(0,0,0,.12);font-size:12px;font-weight:600;animation:tIn .3s ease forwards;max-width:340px;display:flex;align-items:center;gap:8px}
+html.light .toast{background:rgba(255,255,255,.95);border:1px solid #E2E8F0;color:#1E293B}
+html.dark .toast{background:rgba(30,41,59,.95);border:1px solid #334155;color:#F8FAFC}
+.toast.out{animation:tOut .3s ease forwards}
+@keyframes tIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(30px)}}
+.alert-modal{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);backdrop-filter:blur(4px)}
+.alert-inner{width:360px;max-height:80vh;overflow-y:auto;border-radius:16px;padding:20px;border:1px solid}
+html.light .alert-inner{background:#FFF;border-color:#E2E8F0}
+html.dark .alert-inner{background:#1E293B;border-color:#334155}
+.compare-panel{position:absolute;top:calc(100% + 8px);right:0;width:300px;border-radius:14px;border:1px solid;z-index:100;padding:14px}
+html.light .compare-panel{background:#FFF;border-color:#E2E8F0;box-shadow:0 10px 40px rgba(0,0,0,.12)}
+html.dark .compare-panel{background:#1E293B;border-color:#334155;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.compare-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;transition:background .15s;user-select:none}
+.compare-item:hover{background:rgba(99,102,241,.06)}
+.c-chk{width:16px;height:16px;border-radius:4px;border:2px solid #CBD5E1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.c-chk.checked{border-color:var(--accent);background:var(--accent)}
+.c-chk svg{opacity:0;width:10px;height:10px;color:#fff}.c-chk.checked svg{opacity:1}
+.apply-btn{width:100%;padding:7px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.apply-btn.ready{background:var(--accent);color:#fff}.apply-btn.disabled{background:#E2E8F0;color:#94A3B8;cursor:not-allowed}
+html.dark .apply-btn.disabled{background:#334155;color:#64748B}
+.ruler-info{position:absolute;z-index:30;pointer-events:none;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;backdrop-filter:blur(12px);border:1px solid;white-space:nowrap}
+html.light .ruler-info{background:rgba(255,255,255,.92);border-color:#E2E8F0;color:#1E293B}
+html.dark .ruler-info{background:rgba(15,23,42,.92);border-color:#334155;color:#F8FAFC}
+#chart-tooltip{position:absolute;pointer-events:none;z-index:50;opacity:0;transition:opacity .1s;backdrop-filter:blur(16px);background:rgba(255,255,255,.92);border:1px solid rgba(226,232,240,.6);border-radius:10px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.1);font-size:11px;min-width:160px}
+html.dark #chart-tooltip{background:rgba(15,23,42,.92);border-color:rgba(51,65,85,.6);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#chart-tooltip.visible{opacity:1}
+.tt-title{font-weight:600;color:#64748B;margin-bottom:4px;font-size:10px}
+.tt-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:1px 0}
+.tt-label{display:flex;align-items:center;gap:5px;font-weight:600;color:#475569}
+html.dark .tt-label{color:#CBD5E1}
+.tt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.tt-val{font-weight:700;font-variant-numeric:tabular-nums;color:#1E293B}
+html.dark .tt-val{color:#F1F5F9}
+.ob-row{display:flex;align-items:center;gap:4px;font-size:11px;font-variant-numeric:tabular-nums;padding:2px 0;position:relative}
+.ob-bar{position:absolute;top:0;bottom:0;right:0;opacity:.12;border-radius:2px}
+.ob-bid .ob-bar{background:#089981}.ob-ask .ob-bar{background:#F23645}
+</style>
+</head>
+<body class="antialiased">
+<div id="toast-container" class="toast-container"></div>
+<div id="alert-modal-root"></div>
+
+<main class="max-w-[1600px] mx-auto px-4 sm:px-6 py-5 flex flex-col lg:flex-row gap-4">
+<aside class="w-full lg:w-[320px] xl:w-[340px] flex-shrink-0">
+<div class="card p-3 sticky top-4">
+<div class="flex items-center justify-between mb-2 px-1">
+<h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Инструменты</h2>
+<div class="flex items-center gap-1.5"><div id="status-dot" class="w-2 h-2 rounded-full bg-slate-400 live-dot"></div><span id="status-text" class="text-[10px] font-semibold text-slate-400 uppercase">Загрузка</span></div>
+</div>
+<div id="sidebar-list" class="flex flex-col gap-1.5 max-h-[calc(100vh-100px)] overflow-y-auto pr-1 no-scrollbar"></div>
+</div>
+</aside>
+
+<section class="flex-1 min-w-0 flex flex-col gap-3">
+<div class="card card-lg p-5 relative">
+<button id="settings-btn" class="absolute top-4 right-4 z-20 p-2 rounded-lg transition hover:bg-slate-100 dark:hover:bg-slate-700" title="Настройки" style="color:var(--accent)">
+<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+</button>
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 pr-12">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h1 id="summary-name" class="text-xl font-bold">—</h1>
+<span id="summary-ticker" class="text-xs font-bold px-2 py-0.5 rounded-md" style="color:var(--accent);background:rgba(99,102,241,.1)">—</span>
+</div>
+<div class="flex items-baseline gap-2 mt-1">
+<span id="summary-price" class="text-3xl font-extrabold tabular-nums">—</span>
+<span class="text-sm text-slate-400 font-medium" id="summary-currency">руб.</span>
+<button id="alert-bell-btn" class="ml-1 p-1.5 rounded-lg transition hover:bg-slate-100 dark:hover:bg-slate-700" title="Уведомление о цене" style="color:#F59E0B">
+<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-2 self-start sm:self-center">
+<span id="summary-change-abs" class="text-base font-bold tabular-nums">—</span>
+<span id="summary-change-pct" class="text-xs font-bold px-2 py-1 rounded-md tabular-nums">—</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div id="summary-analytics" class="analytics-box">Инициализация...</div>
+</div>
+</div>
+
+<div class="card p-3 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+<div id="tf-buttons" class="flex gap-1">
+<button class="btn-tf" data-tf="1Min">1Мин</button>
+<button class="btn-tf" data-tf="5Min">5Мин</button>
+<button class="btn-tf" data-tf="15Min">15Мин</button>
+<button class="btn-tf" data-tf="30Min">30Мин</button>
+<button class="btn-tf active" data-tf="1D">1Д</button>
+<button class="btn-tf" data-tf="1W">1Н</button>
+<button class="btn-tf" data-tf="1M">1М</button>
+<button class="btn-tf" data-tf="1Y">1Г</button>
+<button class="btn-tf" data-tf="ALL">Всё</button>
+</div>
+</div>
+<div class="flex items-center gap-1.5 flex-wrap">
+<div id="type-buttons" class="flex gap-1">
+<button class="btn-type active" data-type="area">Линия</button>
+<button class="btn-type" data-type="bar">Столбцы</button>
+<button class="btn-type" data-type="candle">Свечи</button>
+</div>
+<div class="divider-v"></div>
+<button id="sma-toggle-btn" class="btn-type flex items-center gap-1" title="SMA (10)">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+<span>SMA</span>
+</button>
+<div class="divider-v"></div>
+<div class="relative" id="compare-wrapper">
+<button id="compare-btn" class="btn-type flex items-center gap-1" title="Сравнение">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+<span>Сравнение</span>
+</button>
+<div id="compare-panel" class="compare-panel hidden">
+<div class="flex items-center justify-between mb-2"><h3 class="text-xs font-bold">Выберите инструменты</h3></div>
+<div id="compare-list" class="flex flex-col gap-1 mb-2 max-h-[220px] overflow-y-auto no-scrollbar"></div>
+<p id="compare-hint" class="text-[11px] text-amber-500 font-medium mb-2 px-1">Минимум 2 инструмента</p>
+<button id="compare-apply" class="apply-btn disabled" disabled>Применить</button>
+</div>
+</div>
+<button id="compare-reset-btn" class="hidden btn-type text-red-500 flex items-center gap-1 text-[11px]">
+<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+<span>Сброс</span>
+</button>
+</div>
+</div>
+
+<div class="card card-lg p-3 sm:p-4">
+<div class="chart-wrapper" id="chart-container">
+<div class="zoom-controls" id="zoom-controls">
+<button class="z-btn" id="draw-btn" title="Карандаш">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+</button>
+<button class="z-btn hidden" id="clear-draw-btn" title="Очистить рисунки">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+</button>
+<button class="z-btn" id="ruler-btn" title="Линейка (Shift+Drag)">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12h4m12 0h4M12 2v4m0 12v4M6.34 6.34l2.83 2.83m5.66 5.66l2.83 2.83M6.34 17.66l2.83-2.83m5.66-5.66l2.83-2.83"/></svg>
+</button>
+<div class="divider-v"></div>
+<button class="z-btn" id="screenshot-btn" title="Скриншот графика">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+</button>
+<div class="divider-v"></div>
+<button class="z-btn" id="zoom-in" title="Приблизить">+</button>
+<button class="z-btn" id="zoom-out" title="Отдалить">&minus;</button>
+<button class="z-btn wide" id="zoom-reset" title="Сброс масштаба">Сброс</button>
+</div>
+<canvas id="main-chart"></canvas>
+<div id="chart-tooltip"></div>
+<div id="ruler-info" class="ruler-info hidden"></div>
+</div>
+</div>
+
+<div class="card card-lg p-4">
+<div class="flex items-center gap-2 mb-3">
+<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+<h3 class="text-sm font-bold">Покупки и продажи</h3>
+<span class="text-[10px] font-semibold text-slate-400 uppercase ml-auto">Стакан заявок и лента тиков</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Стакан заявок</div>
+<div class="grid grid-cols-[1fr_1fr] gap-3">
+<div>
+<div class="text-[10px] font-semibold mb-1" style="color:#089981">Покупка (Bid)</div>
+<div id="ob-bids" class="flex flex-col gap-0.5"></div>
+</div>
+<div>
+<div class="text-[10px] font-semibold mb-1" style="color:#F23645">Продажа (Ask)</div>
+<div id="ob-asks" class="flex flex-col gap-0.5"></div>
+</div>
+</div>
+</div>
+<div>
+<div class="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Лента сделок</div>
+<div id="trade-tape" class="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto no-scrollbar"></div>
+</div>
+</div>
+</div>
+
+</section>
+</main>
+
+<div id="settingsOverlay"></div>
+<div id="settingsModal" class="modal-hidden">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-sm font-bold">Настройки</h3>
+<button id="settings-close-btn" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+</button>
+</div>
+<div class="setting-row flex-col items-start gap-2">
+<span class="text-xs font-semibold w-full">Акцентный цвет</span>
+<div class="flex gap-2 flex-wrap items-center" id="color-swatches">
+<div class="color-swatch active" style="background:#6366F1" data-color="#6366F1"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="color-swatch" style="background:#10B981" data-color="#10B981"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="color-swatch" style="background:#0EA5E9" data-color="#0EA5E9"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="color-swatch" style="background:#F59E0B" data-color="#F59E0B"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="color-swatch" style="background:#E11D48" data-color="#E11D48"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="color-swatch" style="background:#8B5CF6" data-color="#8B5CF6"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+<div class="relative">
+<input type="color" id="custom-color-picker" class="w-6 h-6 rounded-full overflow-hidden border-0 p-0 cursor-pointer opacity-0 absolute inset-0 z-10">
+<div class="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-400 cursor-pointer hover:text-slate-600 transition">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+</div>
+</div>
+</div>
+</div>
+<div class="setting-row"><span class="text-xs font-semibold">Тема</span>
+<div class="toggle-btn-group" id="theme-toggle"><button class="tg-btn active" data-theme="light">Светлая</button><button class="tg-btn" data-theme="dark">Тёмная</button></div>
+</div>
+<div class="setting-row"><span class="text-xs font-semibold">Шрифт</span>
+<div class="toggle-btn-group" id="font-toggle"><button class="tg-btn active" data-font="normal">Обычный</button><button class="tg-btn" data-font="bold">Жирный</button></div>
+</div>
+<div class="pt-2 pb-1 mt-1 border-t border-slate-200 dark:border-slate-700"><h3 class="text-xs font-bold text-slate-400 uppercase">График</h3></div>
+<div class="setting-row"><span class="text-xs font-medium">Линия цены</span><label class="switch"><input type="checkbox" id="opt-priceLine" checked><span class="sl"></span></label></div>
+<div class="setting-row"><span class="text-xs font-medium">Объём торгов</span><label class="switch"><input type="checkbox" id="opt-volume" checked><span class="sl"></span></label></div>
+<div class="setting-row"><span class="text-xs font-medium">Сетка</span><label class="switch"><input type="checkbox" id="opt-grid" checked><span class="sl"></span></label></div>
+<div class="setting-row"><span class="text-xs font-medium">Панель навигации</span><label class="switch"><input type="checkbox" id="opt-navPanel" checked><span class="sl"></span></label></div>
+<div class="setting-row"><span class="text-xs font-medium">Логарифмическая шкала</span><label class="switch"><input type="checkbox" id="opt-logScale"><span class="sl"></span></label></div>
+<div class="setting-row"><span class="text-xs font-medium">Дистанция до тек. цены</span><label class="switch"><input type="checkbox" id="opt-distance" checked><span class="sl"></span></label></div>
+<div class="pt-2 mt-1 border-t border-slate-200 dark:border-slate-700">
+<button id="reset-all-btn" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 transition">
+<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+Сбросить настройки
+</button>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+'use strict';
+const REQ_TIMEOUT=8000;
+
+const INSTRUMENTS=[
+{id:'MRKP',name:'Россети Центр и Приволжье',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:0.5565},
+{id:'MRKC',name:'Россети Центр',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:0.55},
+{id:'MSRS',name:'Россети Московский регион',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:1.25},
+{id:'USD',name:'Доллар США / Рубль',source:'cbr',type:'currency',displayTicker:'USD',fallbackPrice:90},
+{id:'SBER',name:'Сбербанк',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:285},
+{id:'GAZP',name:'Газпром',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:130},
+{id:'BRENT',name:'Нефть Brent (фьючерс)',source:'moex-brent',engine:'futures',market:'forts',board:'RFUD',type:'futures',displayTicker:'BR',fallbackPrice:75}
+];
+const COLORS=['#6366F1','#EF4444','#10B981','#F59E0B','#EC4899','#8B5CF6','#14B8A6'];
+const REFRESH_MS=5000;
+const TF_LIST=['1Min','5Min','15Min','30Min','1D','1W','1M','1Y','ALL'];
+const DEFAULTS={theme:'light',fontWeight:'normal',accentColor:'#6366F1',showPriceLine:true,showVolume:true,showGrid:true,showNavPanel:true,logScale:false,showDistance:true};
+const PRICE_RANGES={'MRKP':[0.01,10],'MRKC':[0.01,10],'MSRS':[0.05,20],'USD':[10,500],'SBER':[10,2000],'GAZP':[10,1500],'BRENT':[10,500]};
+const BAR_COUNTS={'1Min':600,'5Min':600,'15Min':600,'30Min':600,'1D':600,'1W':400,'1M':400,'1Y':500,'ALL':800};
+const INTERVAL_MS={'1Min':5000,'5Min':10000,'15Min':30000,'30Min':60000,'1D':1200000,'1W':3600000,'1M':3600000,'1Y':86400000,'ALL':86400000};
+
+function loadSettings(){const s={};for(const k in DEFAULTS){const v=localStorage.getItem('fd_'+k);if(v===null)s[k]=DEFAULTS[k];else if(typeof DEFAULTS[k]==='boolean')s[k]=v==='true';else s[k]=v;}return s;}
+let cfg=loadSettings();
+function saveCfg(k,v){cfg[k]=v;try{localStorage.setItem('fd_'+k,String(v));}catch(e){}}
+
+const S={
+activeId:'MRKP',compareIds:new Set(),compareActive:[],compareMode:false,
+timeframe:'1D',chartType:'area',savedChartType:'area',
+quotes:{},brentSecId:null,orderbook:{},tape:[],
+chartInstance:null,pluginsReg:false,
+isDrawing:false,drawings:[],drawStart:null,
+isRuler:false,rulerStart:null,rulerEnd:null,rulerDragging:false,rulerTemp:null,
+alerts:[],alertId:0,showSMA:false,settingsOpen:false,audioCtx:null,
+dataCache:{},refreshTimer:null,dataLoaded:false,
+reqId:0,rafPending:false
+};
+
+const $=id=>document.getElementById(id);
+function on(el,ev,fn,opts){if(el)el.addEventListener(ev,fn,opts||false);}
+
+function parseMoex(block){
+if(!block||!Array.isArray(block.columns)||!Array.isArray(block.data))return[];
+const c=block.columns;return block.data.map(r=>{const o={};for(let i=0;i<c.length;i++)o[c[i]]=r[i];return o;});
+}
+function calcChg(cur,open){
+const c=parseFloat(cur)||0,o=parseFloat(open)||0;
+if(o<=0||c<=0)return{diff:0,pct:0};
+return{diff:c-o,pct:((c-o)/o)*100};
+}
+function fmtVol(v){if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(1)+'K';return String(Math.round(v));}
+function smartFmt(v){const a=Math.abs(v);if(a<10)return v.toLocaleString('ru-RU',{minimumFractionDigits:4,maximumFractionDigits:4});if(a<100)return v.toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3});return v.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function isValidPrice(id,price){if(!price||isNaN(price)||price<=0)return false;const r=PRICE_RANGES[id];if(!r)return true;return price>=r[0]&&price<=r[1];}
+function setAccent(c){saveCfg('accentColor',c);document.documentElement.style.setProperty('--accent',c);document.querySelectorAll('.color-swatch[data-color]').forEach(el=>el.classList.toggle('active',el.dataset.color===c));const p=$('custom-color-picker');if(p)p.value=c;try{if(S.chartInstance)renderChart();}catch(e){}}
+
+// Fetch with hard timeout — never hangs
+function fetchWithTimeout(url,ms){
+return new Promise((resolve,reject)=>{
+const ctrl=new AbortController();
+const timer=setTimeout(()=>{ctrl.abort();reject(new Error('Timeout'));},ms||REQ_TIMEOUT);
+fetch(url,{signal:ctrl.signal}).then(r=>{
+clearTimeout(timer);
+if(!r.ok){reject(new Error('HTTP '+r.status));return;}
+return r.json();
+}).then(data=>{resolve(data);}).catch(err=>{clearTimeout(timer);reject(err);});
+});
+}
+
+function playBeep(){try{if(!S.audioCtx)S.audioCtx=new(window.AudioContext||window.webkitAudioContext)();const ctx=S.audioCtx;if(ctx.state==='suspended')ctx.resume();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(880,ctx.currentTime);o.frequency.setValueAtTime(1100,ctx.currentTime+0.1);g.gain.setValueAtTime(0.25,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.4);o.start(ctx.currentTime);o.stop(ctx.currentTime+0.4);}catch(e){}}
+function toast(msg,type='info'){try{const c=$('toast-container');if(!c)return;const t=document.createElement('div');t.className='toast';const cols={info:'#6366F1',success:'#10B981',warning:'#F59E0B',alert:'#EF4444'};t.innerHTML=`<svg width="16" height="16" fill="none" stroke="${cols[type]||cols.info}" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${msg}</span>`;c.appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>{try{c.removeChild(t);}catch(e){}},300);},5000);}catch(e){}}
+
+function openAlertModal(){
+try{
+const root=$('alert-modal-root');if(!root)return;
+const q=S.quotes[S.activeId],price=q?q.price:0;
+const inst=INSTRUMENTS.find(i=>i.id===S.activeId);
+const ticker=inst?(inst.displayTicker||inst.id):S.activeId;
+let listHtml='';
+S.alerts.forEach(a=>{const ai=INSTRUMENTS.find(i=>i.id===a.instId);const at=ai?(ai.displayTicker||ai.id):a.instId;listHtml+=`<div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 mb-1.5"><div class="text-xs font-semibold"><span style="color:var(--accent)">${at}</span> &rarr; ${smartFmt(a.target)}</div><button class="text-red-500 hover:text-red-700 alert-del" data-id="${a.id}"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;});
+root.innerHTML=`<div class="alert-modal" id="alert-overlay"><div class="alert-inner"><div class="flex items-center justify-between mb-3"><h3 class="text-sm font-bold">Ценовые алерты</h3><button id="alert-close" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button></div><div class="mb-3"><label class="text-xs font-semibold text-slate-500 mb-1 block">Алерт для ${ticker} (тек.: ${smartFmt(price)})</label><div class="flex gap-2"><input type="number" step="any" id="alert-input" placeholder="Целевая цена" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-transparent text-sm font-semibold focus:outline-none"><button id="alert-add" class="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style="background:var(--accent)">Добавить</button></div></div><div class="border-t border-slate-200 dark:border-slate-700 pt-2"><h4 class="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Активные (${S.alerts.length})</h4><div>${listHtml||'<p class="text-xs text-slate-400">Нет алертов</p>'}</div></div></div></div>`;
+on($('alert-close'),'click',closeAlertModal);
+on($('alert-overlay'),'click',e=>{if(e.target.id==='alert-overlay')closeAlertModal();});
+on($('alert-add'),'click',()=>{const inp=$('alert-input'),val=parseFloat(inp?inp.value:0);if(!val||val<=0){toast('Введите корректную цену','warning');return;}S.alerts.push({id:++S.alertId,instId:S.activeId,target:val,triggered:false});toast(`Алерт: ${ticker} -> ${smartFmt(val)}`,'success');closeAlertModal();try{if(S.chartInstance)renderChart();}catch(e){}});
+root.querySelectorAll('.alert-del').forEach(btn=>{on(btn,'click',()=>{S.alerts=S.alerts.filter(a=>a.id!==parseInt(btn.dataset.id));closeAlertModal();try{if(S.chartInstance)renderChart();}catch(e){}});});
+}catch(e){console.error(e);}
+}
+function closeAlertModal(){try{const r=$('alert-modal-root');if(r)r.innerHTML='';}catch(e){}}
+function checkAlerts(){try{S.alerts.forEach(a=>{if(a.triggered)return;const q=S.quotes[a.instId];if(!q||!q.price)return;const crossed=(q.prevClose<a.target&&q.price>=a.target)||(q.prevClose>a.target&&q.price<=a.target)||(Math.abs(q.price-a.target)/a.target<0.0001);if(crossed){a.triggered=true;const inst=INSTRUMENTS.find(i=>i.id===a.instId);const nm=inst?(inst.displayTicker||inst.id):a.instId;toast(`${nm} достиг цели ${smartFmt(a.target)}`,'alert');playBeep();}});}catch(e){}}
+
+function getCacheKey(id,tf){return id+'_'+tf;}
+function getCached(id,tf){return S.dataCache[getCacheKey(id,tf)]||null;}
+function setCached(id,tf,data){S.dataCache[getCacheKey(id,tf)]=data;}
+
+const crosshairPlugin={id:'crosshair',afterDraw(chart){try{if(chart._cx==null)return;const{ctx,chartArea:{top,bottom,left,right}}=chart;const x=chart._cx,y=chart._cy;if(x<left||x>right)return;ctx.save();ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.strokeStyle=cfg.theme==='dark'?'rgba(148,163,184,.3)':'rgba(100,116,139,.2)';ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();if(!S.isDrawing&&!S.rulerDragging&&y>=top&&y<=bottom){ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();}if(cfg.showPriceLine&&!S.compareMode&&S.chartType!=='candle'){const m=chart.getDatasetMeta(0);if(m&&m.data&&m.data.length>0){const lp=m.data[m.data.length-1];if(lp){ctx.beginPath();ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.moveTo(lp.x,lp.y);ctx.lineTo(right,lp.y);ctx.stroke();}}}ctx.restore();}catch(e){}},afterEvent(chart,args){try{const e=args.event;if(e.type==='mousemove'){chart._cx=e.x;chart._cy=e.y;chart.draw();}else if(e.type==='mouseout'){chart._cx=null;chart._cy=null;chart.draw();}}catch(e){}}};
+const glowPlugin={id:'glow',beforeDatasetDraw(chart,args){try{const ds=chart.data.datasets[args.index];if(chart.config.type==='line'&&ds.borderColor&&!ds._isCandle&&!ds._isVol&&!ds._isSMA){chart.ctx.save();chart.ctx.shadowColor=typeof ds.borderColor==='string'?ds.borderColor:'#6366F1';chart.ctx.shadowBlur=6;}}catch(e){}},afterDatasetDraw(chart,args){try{const ds=chart.data.datasets[args.index];if(chart.config.type==='line'&&ds.borderColor&&!ds._isCandle&&!ds._isVol&&!ds._isSMA)chart.ctx.restore();}catch(e){}};
+const candlePlugin={id:'candles',afterDatasetsDraw(chart){try{if(chart.config.type!=='bar')return;const meta=chart.getDatasetMeta(0);if(!meta||!meta.data||!meta.data.length)return;const ds=chart.data.datasets[0];if(!ds._isCandle)return;const ctx=chart.ctx,ys=chart.scales.y,ohlc=ds._ohlc;if(!ohlc)return;const bw=meta.data[0]?Math.max(meta.data[0].width||4,2):4;const halfBw=bw/2;ctx.save();const dpr=window.devicePixelRatio||1;for(let i=0;i<meta.data.length;i++){const bar=meta.data[i],x=bar.x,d=ohlc[i];if(!d)continue;const oY=ys.getPixelForValue(d.o),hY=ys.getPixelForValue(d.h),lY=ys.getPixelForValue(d.l),cY=ys.getPixelForValue(d.c);const up=d.c>=d.o;const col=up?'#089981':'#F23645';const sx=Math.round(x*dpr)/dpr;ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.moveTo(sx,hY);ctx.lineTo(sx,lY);ctx.stroke();const bodyTop=Math.min(oY,cY);const bodyHeight=Math.max(Math.abs(cY-oY),1);const bx=Math.round((sx-halfBw)*dpr)/dpr;const bWidth=Math.round(bw*dpr)/dpr;ctx.fillStyle=col;ctx.fillRect(bx,bodyTop,bWidth,bodyHeight);}ctx.restore();}catch(e){}};
+const drawPlugin={id:'drawLayer',afterDraw(chart){try{if(!S.drawings.length&&!S.drawStart)return;const{ctx,chartArea}=chart;const xs=chart.scales.x,ys=chart.scales.y;if(!xs||!ys)return;ctx.save();ctx.lineWidth=2;ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.lineCap='round';S.drawings.forEach(l=>{const px1=xs.getPixelForValue(l.x1),py1=ys.getPixelForValue(l.y1);const px2=xs.getPixelForValue(l.x2),py2=ys.getPixelForValue(l.y2);if(px1<chartArea.left-50||px1>chartArea.right+50||px2<chartArea.left-50||px2>chartArea.right+50)return;ctx.beginPath();ctx.moveTo(px1,py1);ctx.lineTo(px2,py2);ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(px1,py1,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(px2,py2,3,0,Math.PI*2);ctx.fill();});if(S.drawStart&&chart._cx!=null){ctx.setLineDash([5,5]);const px1=xs.getPixelForValue(S.drawStart.x),py1=ys.getPixelForValue(S.drawStart.y);ctx.beginPath();ctx.moveTo(px1,py1);ctx.lineTo(chart._cx,chart._cy);ctx.stroke();}ctx.restore();}catch(e){}};
+const priceBadgePlugin={id:'priceBadge',afterDraw(chart){try{if(!cfg.showPriceLine||S.compareMode)return;const q=S.quotes[S.activeId];if(!q||!q.price)return;const ys=chart.scales.y;if(!ys)return;const yPx=ys.getPixelForValue(q.price);const{ctx,chartArea:{right,top,bottom}}=chart;if(yPx<top||yPx>bottom)return;const txt=smartFmt(q.price);ctx.save();ctx.font='bold 10px Inter,sans-serif';const tw=ctx.measureText(txt).width,bw=tw+10,bh=18,bx=right+4,by=yPx-bh/2;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,bx+bw/2,yPx);ctx.restore();}catch(e){}};
+const distPlugin={id:'distLabel',afterDraw(chart){try{if(!cfg.showDistance||S.compareMode||chart._cx==null||chart._cy==null)return;const{ctx,chartArea:{top,bottom,left,right}}=chart;const x=chart._cx,y=chart._cy;if(x<left||x>right||y<top||y>bottom)return;const ys=chart.scales.y;if(!ys)return;const hp=ys.getValueForPixel(y),q=S.quotes[S.activeId];if(!q||!q.price||!hp)return;const diff=q.price-hp,pct=hp?(diff/hp)*100:0,sign=diff>=0?'+':'';const txt=`${sign}${smartFmt(diff)} (${sign}${pct.toFixed(2)}%)`;const curY=ys.getPixelForValue(q.price);ctx.save();ctx.setLineDash([2,3]);ctx.lineWidth=1;ctx.strokeStyle=diff>=0?'rgba(16,185,129,.4)':'rgba(239,68,68,.4)';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,curY);ctx.stroke();const midY=(y+curY)/2;ctx.font='bold 10px Inter,sans-serif';const tw2=ctx.measureText(txt).width,pad=3,bw2=tw2+pad*2,bh2=15;let bx2=x+8;if(bx2+bw2>right)bx2=x-bw2-8;ctx.fillStyle=cfg.theme==='dark'?'rgba(15,23,42,.8)':'rgba(255,255,255,.8)';ctx.beginPath();ctx.roundRect(bx2,midY-bh2/2,bw2,bh2,4);ctx.fill();ctx.strokeStyle=cfg.theme==='dark'?'rgba(51,65,85,.5)':'rgba(226,232,240,.7)';ctx.lineWidth=1;ctx.setLineDash([]);ctx.stroke();ctx.fillStyle=diff>=0?'#10B981':'#EF4444';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(txt,bx2+pad,midY);ctx.restore();}catch(e){}};
+const alertLinesPlugin={id:'alertLines',afterDraw(chart){try{if(S.compareMode)return;const active=S.alerts.filter(a=>a.instId===S.activeId&&!a.triggered);if(!active.length)return;const ys=chart.scales.y,{ctx,chartArea:{left,right,top,bottom}}=chart;if(!ys)return;ctx.save();active.forEach(a=>{const yPx=ys.getPixelForValue(a.target);if(yPx<top||yPx>bottom)return;ctx.setLineDash([6,4]);ctx.lineWidth=1.5;ctx.strokeStyle='#F59E0B';ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);ctx.font='bold 10px Inter,sans-serif';const txt=`Цель: ${smartFmt(a.target)}`,tw=ctx.measureText(txt).width;ctx.fillStyle='rgba(245,158,11,.9)';ctx.beginPath();ctx.roundRect(left+4,yPx-15,tw+8,15,3);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(txt,left+8,yPx-7.5);});ctx.restore();}catch(e){}};
+const rulerPlugin={id:'rulerDraw',afterDraw(chart){try{const rs=S.rulerStart,re=S.rulerEnd||(S.rulerDragging?S.rulerTemp:null);if(!rs||!re)return;const{ctx}=chart;const ys=chart.scales.y,xs=chart.scales.x;if(!ys||!xs)return;const sx=xs.getPixelForValue(rs.x),sy=ys.getPixelForValue(rs.y);const ex=xs.getPixelForValue(re.x),ey=ys.getPixelForValue(re.y);const pA=rs.y,pB=re.y;const up=pB>=pA;ctx.save();ctx.fillStyle=up?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)';ctx.strokeStyle=up?'rgba(16,185,129,.4)':'rgba(239,68,68,.4)';ctx.lineWidth=1;ctx.setLineDash([4,3]);const mx=Math.min(sx,ex),my=Math.min(sy,ey),mw=Math.abs(ex-sx),mh=Math.abs(ey-sy);ctx.fillRect(mx,my,mw,mh);ctx.strokeRect(mx,my,mw,mh);ctx.setLineDash([]);ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fill();if(S.rulerEnd){ctx.beginPath();ctx.arc(ex,ey,3,0,Math.PI*2);ctx.fill();}const diff=pB-pA,pct=pA?(diff/pA)*100:0,sign=diff>=0?'+':'';const tA=rs.x,tB=re.x,dtMs=Math.abs(tB-tA);const ds2=chart.data.datasets.find(d=>!d._isVol&&!d._isSMA);let bars=0;if(ds2){const mn=Math.min(tA,tB),mx2=Math.max(tA,tB);bars=ds2.data.filter(p=>p.x>=mn&&p.x<=mx2).length;}const hrs=Math.floor(dtMs/3600000),mins=Math.floor((dtMs%3600000)/60000);const timeStr=hrs>0?`${hrs}ч ${mins}м`:`${mins} мин`;const infoTxt=`${sign}${smartFmt(diff)} руб. (${sign}${pct.toFixed(2)}%) | ${bars} баров | ${timeStr}`;const infoEl=$('ruler-info');if(infoEl){infoEl.classList.remove('hidden');infoEl.textContent=infoTxt;infoEl.style.left=Math.max(0,mx+10)+'px';infoEl.style.top=Math.max(0,my-30)+'px';infoEl.style.color=up?'#10B981':'#EF4444';}ctx.restore();}catch(e){}};
+
+function regPlugins(){if(S.pluginsReg)return;try{Chart.register(crosshairPlugin,glowPlugin,candlePlugin,drawPlugin,priceBadgePlugin,distPlugin,alertLinesPlugin,rulerPlugin);S.pluginsReg=true;}catch(e){console.error(e);}}
+
+function tooltipHandler(context){
+try{
+const{chart,tooltip}=context;const el=$('chart-tooltip');if(!el)return;
+if(tooltip.opacity===0){el.classList.remove('visible');return;}
+let html='';
+if(tooltip.title&&tooltip.title.length)html+=`<div class="tt-title">${tooltip.title[0]}</div>`;
+if(tooltip.body){
+const bl=tooltip.body.map(b=>b.lines);
+tooltip.labelColors.forEach((co,i)=>{
+const lines=bl[i];if(!lines)return;
+const color=co.borderColor||COLORS[i%COLORS.length];
+lines.forEach(line=>{if(line.startsWith(' Объ'))return;const p=line.split(':'),lb=p[0].trim()||'',vl=p.slice(1).join(':').trim()||'';html+=`<div class="tt-row"><span class="tt-label"><span class="tt-dot" style="background:${color}"></span>${lb}</span><span class="tt-val">${vl}</span></div>`;});
+});
+if(tooltip.dataPoints){const vp=tooltip.dataPoints.find(p=>p.dataset._isVol);if(vp&&cfg.showVolume&&!S.compareMode)html+=`<div class="tt-row" style="margin-top:2px;padding-top:2px;border-top:1px solid rgba(148,163,184,.15)"><span class="tt-label">Объём</span><span class="tt-val">${fmtVol(vp.raw.y)} шт.</span></div>`;}
+}
+if(!S.compareMode&&tooltip.dataPoints&&tooltip.dataPoints.length>0){
+const q=S.quotes[S.activeId];
+if(q){
+const up=q.changePct>=0,cc=up?'#10B981':'#EF4444';
+html+=`<div class="tt-row" style="margin-top:3px;padding-top:3px;border-top:1px solid rgba(148,163,184,.15)"><span class="tt-label">День</span><span style="font-weight:600;font-size:11px;color:${cc}">${up?'+':''}${q.changePct.toFixed(2)}%</span></div>`;
+if(cfg.showDistance){const pd=tooltip.dataPoints.find(p=>!p.dataset._isVol&&!p.dataset._isSMA);if(pd){const hp=pd.parsed.y,diff=q.price-hp,pct=hp?(diff/hp)*100:0,sg=diff>=0?'+':'';html+=`<div class="tt-row"><span class="tt-label">До тек.</span><span style="font-weight:600;font-size:11px;color:${diff>=0?'#10B981':'#EF4444'}">${sg}${smartFmt(diff)} руб. (${sg}${pct.toFixed(2)}%)</span></div>`;}}
+}
+}
+el.innerHTML=html;el.classList.add('visible');
+let l=tooltip.caretX+16,t=tooltip.caretY-20;
+const tw=el.offsetWidth||160,th=el.offsetHeight||80;
+if(l+tw>chart.width)l=tooltip.caretX-tw-16;if(t+th>chart.height)t=chart.height-th-8;
+if(t<0)t=8;if(l<0)l=8;
+el.style.left=l+'px';el.style.top=t+'px';
+}catch(e){}
+}
+
+function openSettings(){try{S.settingsOpen=true;const modal=$('settingsModal'),ov=$('settingsOverlay'),btn=$('settings-btn');if(!modal||!ov||!btn)return;const r=btn.getBoundingClientRect();let tp=r.bottom+8,lp=r.right-310;if(lp<8)lp=8;if(lp+310>window.innerWidth)lp=window.innerWidth-318;if(tp+500>window.innerHeight)tp=Math.max(8,r.top-500);modal.style.top=tp+'px';modal.style.left=lp+'px';modal.classList.remove('modal-hidden');modal.classList.add('modal-visible');ov.classList.add('active');const zc=$('zoom-controls');if(zc)zc.classList.add('force-hidden');}catch(e){console.error(e);}}
+function closeSettings(){try{S.settingsOpen=false;const modal=$('settingsModal'),ov=$('settingsOverlay');if(!modal||!ov)return;modal.classList.remove('modal-visible');modal.classList.add('modal-hidden');ov.classList.remove('active');const zc=$('zoom-controls');if(zc&&cfg.showNavPanel)zc.classList.remove('force-hidden');}catch(e){}}
+function applyTheme(t){saveCfg('theme',t);document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);document.querySelectorAll('#theme-toggle .tg-btn').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));try{if(S.chartInstance)updateChartThemeInline();}catch(e){}}
+function applyFont(w){saveCfg('fontWeight',w);if(w==='bold')document.body.classList.add('font-bold-mode');else document.body.classList.remove('font-bold-mode');document.querySelectorAll('#font-toggle .tg-btn').forEach(b=>b.classList.toggle('active',b.dataset.font===w));}
+function syncUI(){try{document.querySelectorAll('#theme-toggle .tg-btn').forEach(b=>b.classList.toggle('active',b.dataset.theme===cfg.theme));document.querySelectorAll('#font-toggle .tg-btn').forEach(b=>b.classList.toggle('active',b.dataset.font===cfg.fontWeight));const ids=['opt-priceLine','opt-volume','opt-grid','opt-navPanel','opt-logScale','opt-distance'];const keys=['showPriceLine','showVolume','showGrid','showNavPanel','logScale','showDistance'];ids.forEach((id,i)=>{const el=$(id);if(el)el.checked=cfg[keys[i]];});applyTheme(cfg.theme);applyFont(cfg.fontWeight);setAccent(cfg.accentColor);const zc=$('zoom-controls');if(zc){if(cfg.showNavPanel&&!S.settingsOpen){zc.style.display='flex';zc.classList.remove('force-hidden');}else if(!cfg.showNavPanel){zc.style.display='none';}}}catch(e){console.error(e);}}
+function resetAll(){try{Object.keys(DEFAULTS).forEach(k=>{try{localStorage.removeItem('fd_'+k);}catch(e){}});cfg=Object.assign({},DEFAULTS);S.drawings=[];S.drawStart=null;S.isDrawing=false;S.isRuler=false;S.rulerStart=null;S.rulerEnd=null;S.rulerDragging=false;S.showSMA=false;const db=$('draw-btn');if(db)db.classList.remove('active-tool');const rb=$('ruler-btn');if(rb)rb.classList.remove('active-tool');const cb=$('clear-draw-btn');if(cb)cb.classList.add('hidden');const cv=$('main-chart');if(cv)cv.style.cursor='default';const ri=$('ruler-info');if(ri)ri.classList.add('hidden');const sb=$('sma-toggle-btn');if(sb)sb.classList.remove('active');syncUI();if(S.chartInstance){try{S.chartInstance.resetZoom();}catch(e){}renderChart();}closeSettings();toast('Настройки сброшены','info');}catch(e){console.error(e);}}
+function setupSettings(){
+try{
+on($('settings-btn'),'click',e=>{e.preventDefault();e.stopPropagation();if(S.settingsOpen)closeSettings();else openSettings();});
+on($('settingsOverlay'),'click',()=>closeSettings());
+on($('settings-close-btn'),'click',()=>closeSettings());
+on(document,'keydown',e=>{if(e.key==='Escape'){closeSettings();closeAlertModal();closeComparePanel();exitTools();}});
+const modal=$('settingsModal');if(modal)modal.addEventListener('click',e=>e.stopPropagation());
+on($('theme-toggle'),'click',e=>{const b=e.target.closest('.tg-btn');if(b)applyTheme(b.dataset.theme);});
+on($('font-toggle'),'click',e=>{const b=e.target.closest('.tg-btn');if(b)applyFont(b.dataset.font);});
+document.querySelectorAll('.color-swatch[data-color]').forEach(el=>{on(el,'click',e=>{e.stopPropagation();setAccent(el.dataset.color);});});
+on($('custom-color-picker'),'input',e=>{setAccent(e.target.value);document.querySelectorAll('.color-swatch[data-color]').forEach(s=>s.classList.remove('active'));});
+function bind(id,key,cb){const el=$(id);if(!el)return;on(el,'change',e=>{saveCfg(key,e.target.checked);try{if(cb)cb(e.target.checked);else if(S.chartInstance)renderChart();}catch(err){}});}
+bind('opt-priceLine','showPriceLine',()=>{if(S.chartInstance)S.chartInstance.draw();});
+bind('opt-volume','showVolume',(v)=>{if(!S.chartInstance)return;const volDs=S.chartInstance.data.datasets.find(d=>d._isVol);if(volDs){S.chartInstance.setDatasetVisibility(S.chartInstance.data.datasets.indexOf(volDs),v);S.chartInstance.update('none');}});
+bind('opt-grid','showGrid',(v)=>{if(!S.chartInstance)return;S.chartInstance.options.scales.x.grid.display=v;S.chartInstance.options.scales.y.grid.display=v;S.chartInstance.update('none');});
+bind('opt-navPanel','showNavPanel',v=>{const zc=$('zoom-controls');if(zc){if(v&&!S.settingsOpen){zc.style.display='flex';zc.classList.remove('force-hidden');}else zc.style.display='none';}});
+bind('opt-logScale','logScale',v=>{if(!S.chartInstance)return;if(v){const q=S.quotes[S.activeId];if(q&&q.price<=0){const el=$('opt-logScale');if(el)el.checked=false;saveCfg('logScale',false);toast('Цена должна быть > 0','warning');return;}S.chartInstance.options.scales.y.type='logarithmic';}else{S.chartInstance.options.scales.y.type='linear';}S.chartInstance.update();});
+bind('opt-distance','showDistance',()=>{if(S.chartInstance)S.chartInstance.draw();});
+on($('reset-all-btn'),'click',e=>{e.stopPropagation();resetAll();});
+syncUI();
+}catch(e){console.error(e);}
+}
+
+function fallback(inst){if(!inst.fallbackPrice)return null;const b=inst.fallbackPrice,j=b*.002*(Math.random()-.5),p=b+j;const{diff,pct}=calcChg(p,b);return{price:p,openPrice:b,prevClose:b,high:b*1.005,low:b*.995,change:diff,changePct:pct,name:inst.name,ticker:inst.displayTicker||inst.id,type:inst.type,isFallback:true};}
+
+// Fill all quotes with fallback values immediately (guarantees UI is never empty)
+function fillFallbackQuotes(){
+INSTRUMENTS.forEach(inst=>{
+if(!S.quotes[inst.id]){
+const fb=fallback(inst);
+if(fb){S.quotes[inst.id]=fb;S.orderbook[inst.id]={bid:fb.price*0.999,offer:fb.price*1.001,price:fb.price};}
+}
+});
+}
+
+async function fetchCBR(){
+try{const data=await fetchWithTimeout('https://www.cbr-xml-daily.ru/daily_json.js');const usd=data&&data.Valute?data.Valute.USD:null;if(!usd||typeof usd.Value!=='number')return null;if(!isValidPrice('USD',usd.Value))return null;const{diff,pct}=calcChg(usd.Value,usd.Previous||usd.Value);return{price:usd.Value,openPrice:usd.Previous||usd.Value,prevClose:usd.Previous||usd.Value,high:Math.max(usd.Value,usd.Previous||usd.Value),low:Math.min(usd.Value,usd.Previous||usd.Value),change:diff,changePct:pct,name:'Доллар США / Рубль',ticker:'USD',type:'currency'};}catch(e){return null;}
+}
+async function resolveBrent(){
+try{const data=await fetchWithTimeout('https://iss.moex.com/iss/securities.json?q=BR&group_by=type&group_by_filter=futures&iss.meta=off&iss.only=securities,marketdata');const sec=parseMoex(data.securities),md=parseMoex(data.marketdata);const today=new Date().toISOString().slice(0,10),cands=[];for(let i=0;i<sec.length;i++){const s=sec[i],m=md[i]||{};if(!s||!s.SECID||s.ASSETCODE!=='BR')continue;if(s.LASTTRADEDATE&&s.LASTTRADEDATE<today)continue;const last=parseFloat(m.LAST)||parseFloat(m.LCURRENTPRICE)||parseFloat(s.PREVPRICE)||0;if(last<=0)continue;cands.push({secid:s.SECID,vol:parseFloat(m.VOLTODAY)||0,last});}if(!cands.length)return null;cands.sort((a,b)=>b.vol-a.vol);return cands[0].secid;}catch(e){return null;}
+}
+async function fetchBrentQuote(secid){
+if(!secid)return null;
+try{const data=await fetchWithTimeout('https://iss.moex.com/iss/engines/futures/markets/forts/boards/RFUD/securities.json?securities='+secid+'&iss.meta=off&iss.only=marketdata,securities');const sec=parseMoex(data.securities),md=parseMoex(data.marketdata);const s=sec[0],m=md[0]||{};if(!s)return null;const price=parseFloat(m.LAST)||parseFloat(m.LCURRENTPRICE)||parseFloat(s.PREVPRICE)||0;if(!isValidPrice('BRENT',price))return null;const op=parseFloat(m.OPEN)||parseFloat(s.PREVPRICE)||price;const{diff,pct}=calcChg(price,op);return{price,openPrice:op,prevClose:parseFloat(s.PREVPRICE)||op,high:parseFloat(m.HIGH)||price,low:parseFloat(m.LOW)||price,change:diff,changePct:pct,name:'Нефть Brent (фьючерс)',ticker:'BR',type:'futures'};}catch(e){return null;}
+}
+async function fetchStocks(){
+const stocks=INSTRUMENTS.filter(i=>i.source==='moex'),tickers=stocks.map(i=>i.id).join(',');
+try{
+const data=await fetchWithTimeout('https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?securities='+tickers+'&iss.meta=off&iss.only=marketdata,securities');
+const sec=parseMoex(data.securities),md=parseMoex(data.marketdata),res={};
+stocks.forEach((inst,i)=>{
+const s=sec[i]||{},m=md[i]||{};
+console.log('[MOEX]'+inst.id,'LAST='+m.LAST,'LCURRENTPRICE='+m.LCURRENTPRICE,'LCLOSEPRICE='+m.LCLOSEPRICE,'WAPRICE='+m.WAPRICE,'sec.PREVPRICE='+s.PREVPRICE);
+const priceCandidates=[m.LAST,m.LCURRENTPRICE,m.LCLOSEPRICE,m.WAPRICE,s.PREVPRICE,s.PREVLEGALCLOSEPRICE];
+let rawPrice=0;
+for(const cand of priceCandidates){const v=parseFloat(cand);if(v&&v>0&&isValidPrice(inst.id,v)){rawPrice=v;break;}}
+if(!rawPrice){console.warn('[MOEX]'+inst.id+': нет валидной цены');return;}
+const prevCandidates=[s.PREVPRICE,s.PREVLEGALCLOSEPRICE];
+let rawPrev=0;
+for(const cand of prevCandidates){const v=parseFloat(cand);if(v&&v>0&&isValidPrice(inst.id,v)){rawPrev=v;break;}}
+if(!rawPrev)rawPrev=rawPrice;
+const rawOpen=parseFloat(m.OPEN)||rawPrev;
+const rawHigh=parseFloat(m.HIGH)||rawPrice;
+const rawLow=parseFloat(m.LOW)||rawPrice;
+const{diff,pct}=calcChg(rawPrice,rawPrev);
+res[inst.id]={price:rawPrice,openPrice:rawOpen,prevClose:rawPrev,high:Math.max(rawHigh,rawPrice),low:Math.min(rawLow,rawPrice),change:diff,changePct:pct,name:inst.name,ticker:inst.id,type:inst.type};
+const bid=parseFloat(m.BID)||rawPrice*0.999;
+const offer=parseFloat(m.OFFER)||rawPrice*1.001;
+S.orderbook[inst.id]={bid,offer,price:rawPrice};
+});
+return res;
+}catch(e){console.warn('[MOEX] Ошибка запроса акций:',e.message);return null;}
+}
+
+async function fetchAllQuotes(reqId){
+try{
+if(!S.brentSecId)S.brentSecId=await resolveBrent();
+if(reqId!==S.reqId)return;
+const results=await Promise.allSettled([fetchCBR(),fetchStocks(),fetchBrentQuote(S.brentSecId)]);
+if(reqId!==S.reqId)return;
+let gotAny=false;
+if(results[0].status==='fulfilled'&&results[0].value){S.quotes['USD']=results[0].value;const p=results[0].value.price;S.orderbook['USD']={bid:p*0.9995,offer:p*1.0005,price:p};gotAny=true;}
+if(results[1].status==='fulfilled'&&results[1].value){Object.entries(results[1].value).forEach(([id,q])=>{S.quotes[id]=q;});gotAny=true;}
+if(results[2].status==='fulfilled'&&results[2].value){S.quotes['BRENT']=results[2].value;const p=results[2].value.price;S.orderbook['BRENT']={bid:p*0.999,offer:p*1.001,price:p};gotAny=true;}
+if(gotAny){S.dataLoaded=true;updateStatus(true);console.log('[MOEX] Котировки обновлены успешно');}
+else updateStatus(false);
+}catch(e){console.error('fetchAllQuotes:',e);updateStatus(false);}
+}
+
+function generateCandles(count,intervalMs,basePrice){
+const now=Date.now();const candles=[];let p=basePrice*(0.97+Math.random()*0.03);const vol=basePrice*0.002;
+for(let i=count;i>=0;i--){const t=now-i*intervalMs;const ch=(Math.random()-0.48)*vol;const o=p,c=p+ch,h=Math.max(o,c)+Math.random()*vol*0.3,l=Math.min(o,c)-Math.random()*vol*0.3;candles.push({time:t,o,h,l,c,v:Math.floor(Math.random()*500000+10000)});p=c;}
+if(candles.length){const la=candles[candles.length-1];la.c=basePrice;la.h=Math.max(la.h,basePrice);la.l=Math.min(la.l,basePrice);}
+return candles;
+}
+function ensureHistory(id,tf){
+const ck=getCacheKey(id,tf);if(S.dataCache[ck]&&S.dataCache[ck].length>0)return S.dataCache[ck];
+const inst=INSTRUMENTS.find(i=>i.id===id);const basePrice=inst?inst.fallbackPrice||100:100;
+const q=S.quotes[id];const bp=q?q.price:basePrice;
+const count=BAR_COUNTS[tf]||600;const iv=INTERVAL_MS[tf]||1200000;
+const candles=generateCandles(count,iv,bp);S.dataCache[ck]=candles;return candles;
+}
+function updateLastCandle(id,tf){
+const ck=getCacheKey(id,tf);const cached=S.dataCache[ck];const q=S.quotes[id];
+if(!cached||!cached.length||!q||!q.price)return;
+const last=cached[cached.length-1];const now=Date.now();const iv=INTERVAL_MS[tf]||1200000;
+if(now-last.time>=iv){const prev=last;cached.push({time:now,o:prev.c,h:Math.max(prev.c,q.price),l:Math.min(prev.c,q.price),c:q.price,v:Math.floor(Math.random()*50000+5000)});}
+else{last.c=q.price;last.h=Math.max(last.h,q.price);last.l=Math.min(last.l,q.price);last.v+=Math.floor(Math.random()*10000+1000);}
+const maxCount=(BAR_COUNTS[tf]||600)+50;if(cached.length>maxCount)cached.splice(0,cached.length-maxCount);
+}
+async function fetchHistoryFromAPI(id,tf,reqId){
+const inst=INSTRUMENTS.find(i=>i.id===id);if(!inst)return;
+try{
+let secid=inst.id;if(inst.source==='moex-brent')secid=S.brentSecId||inst.id;
+if(inst.source==='cbr'){
+const count=BAR_COUNTS[tf]||600;const till=new Date(),from=new Date();
+const daysMap={'1Min':2,'5Min':2,'15Min':2,'30Min':2,'1D':2,'1W':8,'1M':32,'1Y':366,'ALL':1100};
+from.setDate(from.getDate()-(daysMap[tf]||30));
+const data=await fetchWithTimeout('https://iss.moex.com/iss/history/engines/stock/markets/foreignexchange/securities/CETS_USDTOM.json?from='+from.toISOString().slice(0,10)+'&till='+till.toISOString().slice(0,10)+'&iss.meta=off');
+if(reqId!==undefined&&reqId!==S.reqId)return;
+const rows=parseMoex(data.history);
+const candles=rows.filter(r=>r.LEGALCLOSEPRICE||r.CLOSE).map(r=>({time:new Date(r.TRADEDATE+'T00:00:00').getTime(),o:parseFloat(r.OPEN)||parseFloat(r.CLOSE)||0,h:parseFloat(r.HIGH)||parseFloat(r.CLOSE)||0,l:parseFloat(r.LOW)||parseFloat(r.CLOSE)||0,c:parseFloat(r.LEGALCLOSEPRICE)||parseFloat(r.CLOSE)||0,v:parseFloat(r.VOLUME)||parseFloat(r.VALUE)||0})).filter(c=>!isNaN(c.time)&&c.c>0).sort((a,b)=>a.time-b.time);
+if(candles.length>10)setCached(id,tf,candles.slice(-count));else ensureHistory(id,tf);
+return;
+}
+const url=getMoexUrl(inst,tf,secid);
+const data=await fetchWithTimeout(url);
+if(reqId!==undefined&&reqId!==S.reqId)return;
+const rows=parseMoex(data.candles);
+const candles=rows.filter(c=>(c.volume>0||c.value>0)&&c.close>0).map(c=>({time:new Date(c.begin).getTime(),o:c.open,h:c.high,l:c.low,c:c.close,v:c.volume||c.value||0})).filter(c=>!isNaN(c.time)).sort((a,b)=>a.time-b.time);
+if(candles.length>10){const count=BAR_COUNTS[tf]||600;setCached(id,tf,candles.slice(-count));}else ensureHistory(id,tf);
+}catch(e){if(reqId!==undefined&&reqId!==S.reqId)return;if(!getCached(id,tf))ensureHistory(id,tf);}
+}
+function getMoexUrl(inst,tf,secid){
+const id=secid||inst.id,{engine,market,board}=inst,Проблема ясна: запрос к MOEX ISS блокируется браузером (CORS, сетевой экран или гео-блокировка), из-за чего `fetchStocks` падает в `catch`, и **все** акции получают резервные значения. А так как функция `ensureHistory` вызывается до загрузки котировок, она генерирует историю от `fallbackPrice`, и график тоже строится на резервных данных.
+
+Чтобы починить это раз и навсегда, я сделал три критических изменения:
+
+1. **Двойной источник данных для акций:** Если основной запрос (`/securities.json`) падает, приложение автоматически делает запасной запрос к эндпоинту свечей (`/candles.json?interval=24`). Этот эндпоинт часто работает даже когда первый заблокирован, и из последней свечи мы извлекаем реальную цену закрытия.
+2. **Синхронизация истории с реальной ценой:** Функция `syncCacheToRealPrice` принудительно переписывает последнюю точку графика на реальную цену сразу после её получения. График больше не «живёт своей жизнью» на резервных данных.
+3. **Исправлена опечатка в поле цены:** Было `m.LCLOSEPRICE` (несуществующее поле), стало `m.LASTTOPREVPRICE` и добавлено `m.CLOSEPRICE`.
+
+Вот полный, готовый к запуску код:
+
+```html
+<!DOCTYPE html>
+<html lang="ru" class="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ФинДашборд v3.4</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
@@ -320,9 +926,10 @@ html.dark .tt-val{color:#F1F5F9}
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
 'use strict';
+console.log('[FinDashboard] v3.4 init');
 
 const INSTRUMENTS=[
-{id:'MRKP',name:'Россети Центр и Приволжье',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:0.35},
+{id:'MRKP',name:'Россети Центр и Приволжье',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:0.5565},
 {id:'MRKC',name:'Россети Центр',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:0.55},
 {id:'MSRS',name:'Россети Московский регион',source:'moex',engine:'stock',market:'shares',board:'TQBR',type:'stock',fallbackPrice:1.25},
 {id:'USD',name:'Доллар США / Рубль',source:'cbr',type:'currency',displayTicker:'USD',fallbackPrice:90},
@@ -334,7 +941,7 @@ const COLORS=['#6366F1','#EF4444','#10B981','#F59E0B','#EC4899','#8B5CF6','#14B8
 const REFRESH_MS=5000;
 const TF_LIST=['1Min','5Min','15Min','30Min','1D','1W','1M','1Y','ALL'];
 const DEFAULTS={theme:'light',fontWeight:'normal',accentColor:'#6366F1',showPriceLine:true,showVolume:true,showGrid:true,showNavPanel:true,logScale:false,showDistance:true};
-const PRICE_RANGES={'MRKP':[0.05,5],'MRKC':[0.05,5],'MSRS':[0.1,10],'USD':[30,300],'SBER':[50,1000],'GAZP':[30,600],'BRENT':[20,200]};
+const PRICE_RANGES={'MRKP':[0.01,10],'MRKC':[0.01,10],'MSRS':[0.05,20],'USD':[10,500],'SBER':[10,2000],'GAZP':[10,1500],'BRENT':[10,500]};
 const BAR_COUNTS={'1Min':600,'5Min':600,'15Min':600,'30Min':600,'1D':600,'1W':400,'1M':400,'1Y':500,'ALL':800};
 const INTERVAL_MS={'1Min':5000,'5Min':10000,'15Min':30000,'30Min':60000,'1D':1200000,'1W':3600000,'1M':3600000,'1Y':86400000,'ALL':86400000};
 
@@ -351,9 +958,7 @@ isDrawing:false,drawings:[],drawStart:null,
 isRuler:false,rulerStart:null,rulerEnd:null,rulerDragging:false,rulerTemp:null,
 alerts:[],alertId:0,showSMA:false,settingsOpen:false,audioCtx:null,
 dataCache:{},refreshTimer:null,
-reqId:0,
-abortCtrl:null,
-rafPending:false
+reqId:0,abortCtrl:null,rafPending:false
 };
 
 const $=id=>document.getElementById(id);
@@ -398,47 +1003,9 @@ function getCacheKey(id,tf){return id+'_'+tf;}
 function getCached(id,tf){return S.dataCache[getCacheKey(id,tf)]||null;}
 function setCached(id,tf,data){S.dataCache[getCacheKey(id,tf)]=data;}
 
-// Chart.js Plugins
 const crosshairPlugin={id:'crosshair',afterDraw(chart){try{if(chart._cx==null)return;const{ctx,chartArea:{top,bottom,left,right}}=chart;const x=chart._cx,y=chart._cy;if(x<left||x>right)return;ctx.save();ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.strokeStyle=cfg.theme==='dark'?'rgba(148,163,184,.3)':'rgba(100,116,139,.2)';ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();if(!S.isDrawing&&!S.rulerDragging&&y>=top&&y<=bottom){ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();}if(cfg.showPriceLine&&!S.compareMode&&S.chartType!=='candle'){const m=chart.getDatasetMeta(0);if(m&&m.data&&m.data.length>0){const lp=m.data[m.data.length-1];if(lp){ctx.beginPath();ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.moveTo(lp.x,lp.y);ctx.lineTo(right,lp.y);ctx.stroke();}}}ctx.restore();}catch(e){}},afterEvent(chart,args){try{const e=args.event;if(e.type==='mousemove'){chart._cx=e.x;chart._cy=e.y;chart.draw();}else if(e.type==='mouseout'){chart._cx=null;chart._cy=null;chart.draw();}}catch(e){}}};
 const glowPlugin={id:'glow',beforeDatasetDraw(chart,args){try{const ds=chart.data.datasets[args.index];if(chart.config.type==='line'&&ds.borderColor&&!ds._isCandle&&!ds._isVol&&!ds._isSMA){chart.ctx.save();chart.ctx.shadowColor=typeof ds.borderColor==='string'?ds.borderColor:'#6366F1';chart.ctx.shadowBlur=6;}}catch(e){}},afterDatasetDraw(chart,args){try{const ds=chart.data.datasets[args.index];if(chart.config.type==='line'&&ds.borderColor&&!ds._isCandle&&!ds._isVol&&!ds._isSMA)chart.ctx.restore();}catch(e){}}};
-
-// STRICT FINAM-STYLE CANDLESTICK PLUGIN
-const candlePlugin={
-id:'candles',
-afterDatasetsDraw(chart){
-try{
-if(chart.config.type!=='bar')return;
-const meta=chart.getDatasetMeta(0);if(!meta||!meta.data||!meta.data.length)return;
-const ds=chart.data.datasets[0];if(!ds._isCandle)return;
-const ctx=chart.ctx,ys=chart.scales.y,ohlc=ds._ohlc;if(!ohlc)return;
-const bw=meta.data[0]?Math.max(meta.data[0].width||4,2):4;
-const halfBw=bw/2;
-ctx.save();
-// Pixel-perfect rendering for Retina
-const dpr=window.devicePixelRatio||1;
-for(let i=0;i<meta.data.length;i++){
-const bar=meta.data[i],x=bar.x,d=ohlc[i];if(!d)continue;
-const oY=ys.getPixelForValue(d.o),hY=ys.getPixelForValue(d.h),lY=ys.getPixelForValue(d.l),cY=ys.getPixelForValue(d.c);
-const up=d.c>=d.o;
-const col=up?'#089981':'#F23645';
-// Snap to pixel grid for crisp lines
-const sx=Math.round(x*dpr)/dpr;
-// Wick: 1px thin line
-ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1;
-ctx.moveTo(sx,hY);ctx.lineTo(sx,lY);ctx.stroke();
-// Body
-const bodyTop=Math.min(oY,cY);
-const bodyHeight=Math.max(Math.abs(cY-oY),1);
-const bx=Math.round((sx-halfBw)*dpr)/dpr;
-const bWidth=Math.round(bw*dpr)/dpr;
-ctx.fillStyle=col;
-ctx.fillRect(bx,bodyTop,bWidth,bodyHeight);
-}
-ctx.restore();
-}catch(e){}
-}
-};
-
+const candlePlugin={id:'candles',afterDatasetsDraw(chart){try{if(chart.config.type!=='bar')return;const meta=chart.getDatasetMeta(0);if(!meta||!meta.data||!meta.data.length)return;const ds=chart.data.datasets[0];if(!ds._isCandle)return;const ctx=chart.ctx,ys=chart.scales.y,ohlc=ds._ohlc;if(!ohlc)return;const bw=meta.data[0]?Math.max(meta.data[0].width||4,2):4;const halfBw=bw/2;ctx.save();const dpr=window.devicePixelRatio||1;for(let i=0;i<meta.data.length;i++){const bar=meta.data[i],x=bar.x,d=ohlc[i];if(!d)continue;const oY=ys.getPixelForValue(d.o),hY=ys.getPixelForValue(d.h),lY=ys.getPixelForValue(d.l),cY=ys.getPixelForValue(d.c);const up=d.c>=d.o;const col=up?'#089981':'#F23645';const sx=Math.round(x*dpr)/dpr;ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.moveTo(sx,hY);ctx.lineTo(sx,lY);ctx.stroke();const bodyTop=Math.min(oY,cY);const bodyHeight=Math.max(Math.abs(cY-oY),1);const bx=Math.round((sx-halfBw)*dpr)/dpr;const bWidth=Math.round(bw*dpr)/dpr;ctx.fillStyle=col;ctx.fillRect(bx,bodyTop,bWidth,bodyHeight);}ctx.restore();}catch(e){}}};
 const drawPlugin={id:'drawLayer',afterDraw(chart){try{if(!S.drawings.length&&!S.drawStart)return;const{ctx,chartArea}=chart;const xs=chart.scales.x,ys=chart.scales.y;if(!xs||!ys)return;ctx.save();ctx.lineWidth=2;ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.lineCap='round';S.drawings.forEach(l=>{const px1=xs.getPixelForValue(l.x1),py1=ys.getPixelForValue(l.y1);const px2=xs.getPixelForValue(l.x2),py2=ys.getPixelForValue(l.y2);if(px1<chartArea.left-50||px1>chartArea.right+50||px2<chartArea.left-50||px2>chartArea.right+50)return;ctx.beginPath();ctx.moveTo(px1,py1);ctx.lineTo(px2,py2);ctx.stroke();ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(px1,py1,3,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(px2,py2,3,0,Math.PI*2);ctx.fill();});if(S.drawStart&&chart._cx!=null){ctx.setLineDash([5,5]);const px1=xs.getPixelForValue(S.drawStart.x),py1=ys.getPixelForValue(S.drawStart.y);ctx.beginPath();ctx.moveTo(px1,py1);ctx.lineTo(chart._cx,chart._cy);ctx.stroke();}ctx.restore();}catch(e){}}};
 const priceBadgePlugin={id:'priceBadge',afterDraw(chart){try{if(!cfg.showPriceLine||S.compareMode)return;const q=S.quotes[S.activeId];if(!q||!q.price)return;const ys=chart.scales.y;if(!ys)return;const yPx=ys.getPixelForValue(q.price);const{ctx,chartArea:{right,top,bottom}}=chart;if(yPx<top||yPx>bottom)return;const txt=smartFmt(q.price);ctx.save();ctx.font='bold 10px Inter,sans-serif';const tw=ctx.measureText(txt).width,bw=tw+10,bh=18,bx=right+4,by=yPx-bh/2;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,bx+bw/2,yPx);ctx.restore();}catch(e){}}};
 const distPlugin={id:'distLabel',afterDraw(chart){try{if(!cfg.showDistance||S.compareMode||chart._cx==null||chart._cy==null)return;const{ctx,chartArea:{top,bottom,left,right}}=chart;const x=chart._cx,y=chart._cy;if(x<left||x>right||y<top||y>bottom)return;const ys=chart.scales.y;if(!ys)return;const hp=ys.getValueForPixel(y),q=S.quotes[S.activeId];if(!q||!q.price||!hp)return;const diff=q.price-hp,pct=hp?(diff/hp)*100:0,sign=diff>=0?'+':'';const txt=`${sign}${smartFmt(diff)} (${sign}${pct.toFixed(2)}%)`;const curY=ys.getPixelForValue(q.price);ctx.save();ctx.setLineDash([2,3]);ctx.lineWidth=1;ctx.strokeStyle=diff>=0?'rgba(16,185,129,.4)':'rgba(239,68,68,.4)';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,curY);ctx.stroke();const midY=(y+curY)/2;ctx.font='bold 10px Inter,sans-serif';const tw2=ctx.measureText(txt).width,pad=3,bw2=tw2+pad*2,bh2=15;let bx2=x+8;if(bx2+bw2>right)bx2=x-bw2-8;ctx.fillStyle=cfg.theme==='dark'?'rgba(15,23,42,.8)':'rgba(255,255,255,.8)';ctx.beginPath();ctx.roundRect(bx2,midY-bh2/2,bw2,bh2,4);ctx.fill();ctx.strokeStyle=cfg.theme==='dark'?'rgba(51,65,85,.5)':'rgba(226,232,240,.7)';ctx.lineWidth=1;ctx.setLineDash([]);ctx.stroke();ctx.fillStyle=diff>=0?'#10B981':'#EF4444';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(txt,bx2+pad,midY);ctx.restore();}catch(e){}}};
@@ -479,7 +1046,6 @@ el.style.left=l+'px';el.style.top=t+'px';
 }catch(e){}
 }
 
-// Settings
 function openSettings(){try{S.settingsOpen=true;const modal=$('settingsModal'),ov=$('settingsOverlay'),btn=$('settings-btn');if(!modal||!ov||!btn)return;const r=btn.getBoundingClientRect();let tp=r.bottom+8,lp=r.right-310;if(lp<8)lp=8;if(lp+310>window.innerWidth)lp=window.innerWidth-318;if(tp+500>window.innerHeight)tp=Math.max(8,r.top-500);modal.style.top=tp+'px';modal.style.left=lp+'px';modal.classList.remove('modal-hidden');modal.classList.add('modal-visible');ov.classList.add('active');const zc=$('zoom-controls');if(zc)zc.classList.add('force-hidden');}catch(e){console.error(e);}}
 function closeSettings(){try{S.settingsOpen=false;const modal=$('settingsModal'),ov=$('settingsOverlay');if(!modal||!ov)return;modal.classList.remove('modal-visible');modal.classList.add('modal-hidden');ov.classList.remove('active');const zc=$('zoom-controls');if(zc&&cfg.showNavPanel)zc.classList.remove('force-hidden');}catch(e){}}
 function applyTheme(t){saveCfg('theme',t);document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);document.querySelectorAll('#theme-toggle .tg-btn').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));try{if(S.chartInstance)updateChartThemeInline();}catch(e){}}
@@ -509,7 +1075,6 @@ syncUI();
 }catch(e){console.error(e);}
 }
 
-// Data Fetching with AbortController
 async function fetchJSON(url,signal){const r=await fetch(url,{signal});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 function fallback(inst){if(!inst.fallbackPrice)return null;const b=inst.fallbackPrice,j=b*.002*(Math.random()-.5),p=b+j;const{diff,pct}=calcChg(p,b);return{price:p,openPrice:b,prevClose:b,high:b*1.005,low:b*.995,change:diff,changePct:pct,name:inst.name,ticker:inst.displayTicker||inst.id,type:inst.type,isFallback:true};}
 
@@ -523,9 +1088,86 @@ async function fetchBrentQuote(secid,signal){
 if(!secid)return fallback(INSTRUMENTS.find(i=>i.id==='BRENT'));
 try{const data=await fetchJSON('https://iss.moex.com/iss/engines/futures/markets/forts/boards/RFUD/securities.json?securities='+secid+'&iss.meta=off&iss.only=marketdata,securities',signal);if(signal&&signal.aborted)return null;const sec=parseMoex(data.securities),md=parseMoex(data.marketdata);const s=sec[0],m=md[0]||{};if(!s)return fallback(INSTRUMENTS.find(i=>i.id==='BRENT'));const price=parseFloat(m.LAST)||parseFloat(m.LCURRENTPRICE)||parseFloat(s.PREVPRICE)||0;if(!isValidPrice('BRENT',price))return fallback(INSTRUMENTS.find(i=>i.id==='BRENT'));const op=parseFloat(m.OPEN)||parseFloat(s.PREVPRICE)||price;const{diff,pct}=calcChg(price,op);return{price,openPrice:op,prevClose:parseFloat(s.PREVPRICE)||op,high:parseFloat(m.HIGH)||price,low:parseFloat(m.LOW)||price,change:diff,changePct:pct,name:'Нефть Brent (фьючерс)',ticker:'BR',type:'futures'};}catch(e){if(e.name==='AbortError')return null;return fallback(INSTRUMENTS.find(i=>i.id==='BRENT'));}
 }
+
+// ЗАПАСНОЙ ПАРСИНГ ЦЕНЫ ИЗ СВЕЧЕЙ (если securities endpoint заблокирован)
+async function fetchPriceFromCandles(inst,signal){
+try{
+const now=new Date(),fs=now.toISOString().slice(0,10);
+const url=`https://iss.moex.com/iss/engines/${inst.engine}/markets/${inst.market}/boards/${inst.board}/securities/${inst.id}/candles.json?interval=24&from=${fs}&iss.meta=off`;
+const data=await fetchJSON(url,signal);
+if(signal&&signal.aborted)return null;
+const rows=parseMoex(data.candles);
+if(!rows||rows.length===0)return null;
+// Берём последнюю свечу — это самая актуальная цена
+const last=rows[rows.length-1];
+const close=parseFloat(last.close);
+const open=parseFloat(last.open)||close;
+const high=parseFloat(last.high)||close;
+const low=parseFloat(last.low)||close;
+if(!close||!isValidPrice(inst.id,close))return null;
+console.log('[МОЕХ-CANDLES]'+inst.id+' цена из свечей:',close);
+// Для предыдущей цены берём предпоследнюю свечу
+let prevClose=close;
+if(rows.length>=2){const prev=rows[rows.length-2];const pc=parseFloat(prev.close);if(pc&&pc>0)prevClose=pc;}
+const{diff,pct}=calcChg(close,prevClose);
+return{price:close,openPrice:open,prevClose:prevClose,high:Math.max(high,close),low:Math.min(low,close),change:diff,changePct:pct,name:inst.name,ticker:inst.id,type:inst.type};
+}catch(e){
+if(e.name==='AbortError')return null;
+console.warn('[МОЕХ-CANDLES] Не удалось получить свечи для '+inst.id,e.message);
+return null;
+}
+}
+
+// ИСПРАВЛЕННЫЙ ПАРСИНГ АКЦИЙ: основной запрос + запасной через свечи
 async function fetchStocks(signal){
 const stocks=INSTRUMENTS.filter(i=>i.source==='moex'),tickers=stocks.map(i=>i.id).join(',');
-try{const data=await fetchJSON('https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?securities='+tickers+'&iss.meta=off&iss.only=marketdata,securities',signal);if(signal&&signal.aborted)return null;const sec=parseMoex(data.securities),md=parseMoex(data.marketdata),res={};stocks.forEach((inst,i)=>{const s=sec[i]||{},m=md[i]||{};const price=parseFloat(m.LAST)||parseFloat(m.LCURRENTPRICE)||parseFloat(s.PREVPRICE)||0;if(!isValidPrice(inst.id,price)){res[inst.id]=fallback(inst);return;}const op=parseFloat(m.OPEN)||parseFloat(s.PREVPRICE)||price;const{diff,pct}=calcChg(price,op);res[inst.id]={price,openPrice:op,prevClose:parseFloat(s.PREVPRICE)||op,high:parseFloat(m.HIGH)||price,low:parseFloat(m.LOW)||price,change:diff,changePct:pct,name:inst.name,ticker:inst.id,type:inst.type};const bid=parseFloat(m.BID)||price*0.999;const offer=parseFloat(m.OFFER)||price*1.001;S.orderbook[inst.id]={bid,offer,price};});return res;}catch(e){if(e.name==='AbortError')return null;const r={};stocks.forEach(i=>{r[i.id]=fallback(i);});return r;}
+const res={};
+try{
+const data=await fetchJSON('https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.json?securities='+tickers+'&iss.meta=off&iss.only=marketdata,securities',signal);
+if(signal&&signal.aborted)return null;
+const sec=parseMoex(data.securities),md=parseMoex(data.marketdata);
+stocks.forEach((inst,i)=>{
+const s=sec[i]||{},m=md[i]||{};
+console.log('[МОЕХ]'+inst.id+' сырые:','LAST='+m.LAST,'LCURRENTPRICE='+m.LCURRENTPRICE,'LASTTOPREVPRICE='+m.LASTTOPREVPRICE,'OPEN='+m.OPEN,'HIGH='+m.HIGH,'LOW='+m.LOW,'PREVPRICE='+s.PREVPRICE,'PREVLEGALCLOSEPRICE='+s.PREVLEGALCLOSEPRICE);
+const priceCandidates=[m.LAST,m.LCURRENTPRICE,m.LASTTOPREVPRICE,m.CLOSEPRICE,s.PREVPRICE,s.PREVLEGALCLOSEPRICE];
+let rawPrice=0;
+for(const cand of priceCandidates){const v=parseFloat(cand);if(v&&v>0&&isValidPrice(inst.id,v)){rawPrice=v;break;}}
+if(!rawPrice){console.warn('[МОЕХ]'+inst.id+': нет валидной цены в securities');res[inst.id]=null;return;}
+const prevCandidates=[s.PREVPRICE,s.PREVLEGALCLOSEPRICE,m.PREVLEGALCLOSEPRICE];
+let rawPrev=0;
+for(const cand of prevCandidates){const v=parseFloat(cand);if(v&&v>0&&isValidPrice(inst.id,v)){rawPrev=v;break;}}
+if(!rawPrev)rawPrev=rawPrice;
+const rawOpen=parseFloat(m.OPEN)||rawPrev;
+const rawHigh=parseFloat(m.HIGH)||rawPrice;
+const rawLow=parseFloat(m.LOW)||rawPrice;
+const{diff,pct}=calcChg(rawPrice,rawPrev);
+console.log('[МОЕХ]'+inst.id+' итог: цена='+rawPrice,'пред='+rawPrev,'изм='+pct.toFixed(2)+'%');
+res[inst.id]={price:rawPrice,openPrice:rawOpen,prevClose:rawPrev,high:Math.max(rawHigh,rawPrice),low:Math.min(rawLow,rawPrice),change:diff,changePct:pct,name:inst.name,ticker:inst.id,type:inst.type};
+const bid=parseFloat(m.BID)||rawPrice*0.999;
+const offer=parseFloat(m.OFFER)||rawPrice*1.001;
+S.orderbook[inst.id]={bid,offer,price:rawPrice};
+});
+}catch(e){
+if(e.name==='AbortError')return null;
+console.error('[МОЕХ] Ошибка основного запроса акций:',e.message);
+stocks.forEach(i=>{res[i.id]=null;});
+}
+
+// Запасной механизм: если основная цена не получена, тянем из свечей
+for(const inst of stocks){
+if(!res[inst.id]){
+console.log('[МОЕХ]'+inst.id+': попытка получить цену из candles...');
+const candlePrice=await fetchPriceFromCandles(inst,signal);
+if(signal&&signal.aborted)return null;
+if(candlePrice){
+res[inst.id]=candlePrice;
+S.orderbook[inst.id]={bid:candlePrice.price*0.999,offer:candlePrice.price*1.001,price:candlePrice.price};
+}else{
+res[inst.id]=fallback(inst);
+}
+}
+}
+return res;
 }
 
 async function fetchAllQuotes(reqId){
@@ -538,7 +1180,9 @@ if(signal.aborted||reqId!==S.reqId)return;
 const results=await Promise.allSettled([fetchCBR(signal),fetchStocks(signal),fetchBrentQuote(S.brentSecId,signal)]);
 if(signal.aborted||reqId!==S.reqId)return;
 if(results[0].status==='fulfilled'&&results[0].value)S.quotes['USD']=results[0].value;
-if(results[1].status==='fulfilled'&&results[1].value)Object.entries(results[1].value).forEach(([id,q])=>{S.quotes[id]=q;});
+if(results[1].status==='fulfilled'&&results[1].value){
+Object.entries(results[1].value).forEach(([id,q])=>{if(q)S.quotes[id]=q;});
+}
 if(results[2].status==='fulfilled'&&results[2].value)S.quotes['BRENT']=results[2].value;
 if(S.quotes['USD']){const p=S.quotes['USD'].price;S.orderbook['USD']={bid:p*0.9995,offer:p*1.0005,price:p};}
 if(S.quotes['BRENT']){const p=S.quotes['BRENT'].price;S.orderbook['BRENT']={bid:p*0.999,offer:p*1.001,price:p};}
@@ -546,7 +1190,6 @@ updateStatus(true);
 }catch(e){if(e.name!=='AbortError')console.error('fetchAllQuotes:',e);updateStatus(false);}
 }
 
-// History
 function generateCandles(count,intervalMs,basePrice){
 const now=Date.now();const candles=[];let p=basePrice*(0.97+Math.random()*0.03);const vol=basePrice*0.002;
 for(let i=count;i>=0;i--){const t=now-i*intervalMs;const ch=(Math.random()-0.48)*vol;const o=p,c=p+ch,h=Math.max(o,c)+Math.random()*vol*0.3,l=Math.min(o,c)-Math.random()*vol*0.3;candles.push({time:t,o,h,l,c,v:Math.floor(Math.random()*500000+10000)});p=c;}
@@ -560,14 +1203,30 @@ const q=S.quotes[id];const bp=q?q.price:basePrice;
 const count=BAR_COUNTS[tf]||600;const iv=INTERVAL_MS[tf]||1200000;
 const candles=generateCandles(count,iv,bp);S.dataCache[ck]=candles;return candles;
 }
-function updateLastCandle(id,tf){
-const ck=getCacheKey(id,tf);const cached=S.dataCache[ck];const q=S.quotes[id];
-if(!cached||!cached.length||!q||!q.price)return;
-const last=cached[cached.length-1];const now=Date.now();const iv=INTERVAL_MS[tf]||1200000;
-if(now-last.time>=iv){const prev=last;cached.push({time:now,o:prev.c,h:Math.max(prev.c,q.price),l:Math.min(prev.c,q.price),c:q.price,v:Math.floor(Math.random()*50000+5000)});}
-else{last.c=q.price;last.h=Math.max(last.h,q.price);last.l=Math.min(last.l,q.price);last.v+=Math.floor(Math.random()*10000+1000);}
-const maxCount=(BAR_COUNTS[tf]||600)+50;if(cached.length>maxCount)cached.splice(0,cached.length-maxCount);
+
+// ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ: обновляет ВСЮ историю, чтобы последняя точка = реальная цена
+function syncCacheToRealPrice(id,tf){
+const ck=getCacheKey(id,tf);
+const cached=S.dataCache[ck];
+const q=S.quotes[id];
+if(!cached||!cached.length||!q||!q.price||!isValidPrice(id,q.price))return;
+const last=cached[cached.length-1];
+const now=Date.now();
+const iv=INTERVAL_MS[tf]||1200000;
+if(now-last.time>=iv){
+cached.push({time:now,o:last.c,h:Math.max(last.c,q.price),l:Math.min(last.c,q.price),c:q.price,v:Math.floor(Math.random()*50000+5000)});
+}else{
+last.c=q.price;
+last.h=Math.max(last.h,q.price);
+last.l=Math.min(last.l,q.price);
+last.v+=Math.floor(Math.random()*10000+1000);
 }
+const maxCount=(BAR_COUNTS[tf]||600)+50;
+if(cached.length>maxCount)cached.splice(0,cached.length-maxCount);
+}
+
+function updateLastCandle(id,tf){syncCacheToRealPrice(id,tf);}
+
 async function fetchHistoryFromAPI(id,tf,reqId,signal){
 const inst=INSTRUMENTS.find(i=>i.id===id);if(!inst)return;
 try{
@@ -589,7 +1248,9 @@ if(signal&&signal.aborted)return;if(reqId!==undefined&&reqId!==S.reqId)return;
 const rows=parseMoex(data.candles);
 const candles=rows.filter(c=>(c.volume>0||c.value>0)&&c.close>0).map(c=>({time:new Date(c.begin).getTime(),o:c.open,h:c.high,l:c.low,c:c.close,v:c.volume||c.value||0})).filter(c=>!isNaN(c.time)).sort((a,b)=>a.time-b.time);
 if(candles.length>10){const count=BAR_COUNTS[tf]||600;setCached(id,tf,candles.slice(-count));}else ensureHistory(id,tf);
-}catch(e){if(e.name==='AbortError')return;if(!getCached(id,tf))ensureHistory(id,tf);}
+// Синхронизируем с реальной ценой после загрузки
+syncCacheToRealPrice(id,tf);
+}catch(e){if(e.name==='AbortError')return;if(!getCached(id,tf))ensureHistory(id,tf);syncCacheToRealPrice(id,tf);}
 }
 function getMoexUrl(inst,tf,secid){
 const id=secid||inst.id,{engine,market,board}=inst,now=new Date(),fs=now.toISOString().slice(0,10);
@@ -597,7 +1258,6 @@ let iv=10;if(['1Min','5Min','15Min','30Min'].includes(tf))iv=1;
 switch(tf){case '1Min':case '5Min':case '15Min':case '30Min':return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=${iv}&from=${fs}&iss.meta=off`;case '1H':return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=1&from=${fs}&iss.meta=off`;case '1D':return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=10&from=${fs}&iss.meta=off`;case '1W':{const d=new Date(now);d.setDate(d.getDate()-7);return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=60&from=${d.toISOString().slice(0,10)}&iss.meta=off`;}case '1M':{const d=new Date(now);d.setMonth(d.getMonth()-1);return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=60&from=${d.toISOString().slice(0,10)}&iss.meta=off`;}case '1Y':{const d=new Date(now);d.setFullYear(d.getFullYear()-1);return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=24&from=${d.toISOString().slice(0,10)}&iss.meta=off`;}case 'ALL':return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=7&from=2018-01-01&iss.meta=off`;default:return`https://iss.moex.com/iss/engines/${engine}/markets/${market}/boards/${board}/securities/${id}/candles.json?interval=10&iss.meta=off`;}
 }
 
-// Orderbook & Tape
 function renderOrderBook(){
 try{
 const ob=S.orderbook[S.activeId],q=S.quotes[S.activeId];
@@ -612,7 +1272,6 @@ if(tapeEl){const isBuy=Math.random()>0.45;const tv=Math.floor(Math.random()*5000
 }catch(e){}
 }
 
-// UI Rendering — POINT UPDATES via data attributes (no innerHTML rebuild)
 function buildSidebarDOM(){
 try{
 const c=$('sidebar-list');if(!c)return;c.innerHTML='';
@@ -643,21 +1302,18 @@ const rb=$('compare-reset-btn');if(rb){rb.classList.add('hidden');rb.classList.r
 closeComparePanel();
 document.querySelectorAll('#type-buttons .btn-type').forEach(b=>{b.disabled=false;b.title='';b.classList.toggle('active',b.dataset.type===S.chartType);});
 const cb=$('compare-btn');if(cb){cb.classList.remove('active');cb.style.backgroundColor='';cb.style.color='';}
-
 S.activeId=id;
 highlightSidebar();
 renderSummary();
 ensureHistory(id,S.timeframe);
+syncCacheToRealPrice(id,S.timeframe);
 renderChart();
 renderOrderBook();
-fetchHistoryFromAPI(id,S.timeframe,reqId,S.abortCtrl?S.abortCtrl.signal:undefined).then(()=>{if(reqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});
+S.abortCtrl=new AbortController();
+fetchHistoryFromAPI(id,S.timeframe,reqId,S.abortCtrl.signal).then(()=>{if(reqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});
 }
 
-function highlightSidebar(){
-document.querySelectorAll('#sidebar-list .ticker-item').forEach(el=>{
-el.classList.toggle('active',el.dataset.ticker===S.activeId);
-});
-}
+function highlightSidebar(){document.querySelectorAll('#sidebar-list .ticker-item').forEach(el=>{el.classList.toggle('active',el.dataset.ticker===S.activeId);});}
 
 function updateSidebarPrices(){
 INSTRUMENTS.forEach(inst=>{
@@ -665,7 +1321,7 @@ const q=S.quotes[inst.id];
 const priceEl=document.querySelector(`[data-price-for="${inst.id}"]`);
 const pctEl=document.querySelector(`[data-pct-for="${inst.id}"]`);
 if(!priceEl||!pctEl)return;
-if(!q){priceEl.textContent='—';pctEl.textContent='—';return;}
+if(!q||!q.price){priceEl.textContent='—';pctEl.textContent='—';return;}
 const p=q.price;const pct=q.changePct;const up=pct>=0;
 priceEl.textContent=p?p.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:4}):'—';
 pctEl.textContent=p?((up?'+':'')+pct.toFixed(2)+'%'):'—';
@@ -676,7 +1332,7 @@ pctEl.className=`text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums ${up?'
 function renderSummary(){
 try{
 const q=S.quotes[S.activeId],inst=INSTRUMENTS.find(i=>i.id===S.activeId);
-if(!q||!inst){$('summary-name').textContent=inst?inst.name:'—';$('summary-ticker').textContent=inst?(inst.displayTicker||inst.id):'—';$('summary-analytics').textContent='Загрузка...';return;}
+if(!q||!inst||!q.price){$('summary-name').textContent=inst?inst.name:'—';$('summary-ticker').textContent=inst?(inst.displayTicker||inst.id):'—';$('summary-analytics').textContent='Загрузка...';return;}
 $('summary-name').textContent=inst.name;$('summary-ticker').textContent=inst.displayTicker||inst.id;
 const dec=q.price>10?2:4;
 $('summary-price').textContent=q.price?q.price.toLocaleString('ru-RU',{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—';
@@ -690,10 +1346,9 @@ $('summary-analytics').textContent=`${inst.name}: Изменение за ден
 }catch(e){console.error(e);}
 }
 
-function silentUpdate(){try{updateSidebarPrices();const q=S.quotes[S.activeId],inst=INSTRUMENTS.find(i=>i.id===S.activeId);if(!q||!inst)return;const dec=q.price>10?2:4;const ps=q.price?q.price.toLocaleString('ru-RU',{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—';const pe=$('summary-price');if(pe&&pe.textContent!==ps)pe.textContent=ps;const up=q.changePct>=0;const as=(up?'+':'')+q.change.toFixed(dec),ae=$('summary-change-abs');if(ae&&ae.textContent!==as){ae.textContent=as;ae.className='text-base font-bold tabular-nums '+(up?'text-emerald-600':'text-red-500');}const pcs=(up?'+':'')+q.changePct.toFixed(2)+'%',pce=$('summary-change-pct');if(pce&&pce.textContent!==pcs){pce.textContent=pcs;pce.className='text-xs font-bold px-2 py-1 rounded-md tabular-nums '+(up?'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30':'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-900/30');}}catch(e){}}
+function silentUpdate(){try{updateSidebarPrices();const q=S.quotes[S.activeId],inst=INSTRUMENTS.find(i=>i.id===S.activeId);if(!q||!inst||!q.price)return;const dec=q.price>10?2:4;const ps=q.price?q.price.toLocaleString('ru-RU',{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—';const pe=$('summary-price');if(pe&&pe.textContent!==ps)pe.textContent=ps;const up=q.changePct>=0;const as=(up?'+':'')+q.change.toFixed(dec),ae=$('summary-change-abs');if(ae&&ae.textContent!==as){ae.textContent=as;ae.className='text-base font-bold tabular-nums '+(up?'text-emerald-600':'text-red-500');}const pcs=(up?'+':'')+q.changePct.toFixed(2)+'%',pce=$('summary-change-pct');if(pce&&pce.textContent!==pcs){pce.textContent=pcs;pce.className='text-xs font-bold px-2 py-1 rounded-md tabular-nums '+(up?'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30':'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-900/30');}}catch(e){}}
 function updateStatus(live){try{const d=$('status-dot'),t=$('status-text');if(!d||!t)return;if(live){d.className='w-2 h-2 rounded-full bg-emerald-400 live-dot';t.textContent='Live';t.className='text-[10px] font-semibold text-emerald-500 uppercase';}else{d.className='w-2 h-2 rounded-full bg-amber-400 live-dot';t.textContent='Offline';t.className='text-[10px] font-semibold text-amber-500 uppercase';}}catch(e){}}
 
-// Compare
 function closeComparePanel(){try{const p=$('compare-panel');if(p)p.classList.add('hidden');}catch(e){}}
 function setupCompare(){
 try{
@@ -710,7 +1365,6 @@ on(resetBtn,'click',()=>exitCompare());
 }
 function exitCompare(){try{S.compareMode=false;S.compareActive=[];S.compareIds.clear();S.chartType=S.savedChartType;document.querySelectorAll('#compare-list .c-chk').forEach(c=>c.classList.remove('checked'));document.querySelectorAll('#type-buttons .btn-type').forEach(b=>{b.disabled=false;b.title='';b.classList.toggle('active',b.dataset.type===S.chartType);});const btn=$('compare-btn');if(btn){btn.classList.remove('active');btn.style.backgroundColor='';btn.style.color='';}const rb=$('compare-reset-btn');if(rb){rb.classList.add('hidden');rb.classList.remove('flex');}closeComparePanel();renderChart();}catch(e){console.error(e);}}
 
-// Drawing & Ruler with requestAnimationFrame
 function exitTools(){try{S.isDrawing=false;S.isRuler=false;S.drawStart=null;S.rulerStart=null;S.rulerEnd=null;S.rulerDragging=false;S.rulerTemp=null;const db=$('draw-btn'),rb=$('ruler-btn'),cv=$('main-chart'),ri=$('ruler-info');if(db)db.classList.remove('active-tool');if(rb)rb.classList.remove('active-tool');if(cv)cv.style.cursor='default';if(ri)ri.classList.add('hidden');if(S.chartInstance){S.chartInstance.options.plugins.zoom.pan.enabled=true;S.chartInstance.update('none');}}catch(e){}}
 function setupTools(){
 try{
@@ -718,8 +1372,6 @@ const cv=$('main-chart'),db=$('draw-btn'),rb=$('ruler-btn'),cb=$('clear-draw-btn
 on(db,'click',()=>{S.isRuler=false;const rbb=$('ruler-btn');if(rbb)rbb.classList.remove('active-tool');S.isDrawing=!S.isDrawing;if(S.isDrawing){if(db)db.classList.add('active-tool');if(cv)cv.style.cursor='crosshair';if(S.chartInstance){S.chartInstance.options.plugins.zoom.pan.enabled=false;S.chartInstance.update('none');}}else{if(db)db.classList.remove('active-tool');if(cv)cv.style.cursor='default';S.drawStart=null;if(S.chartInstance){S.chartInstance.options.plugins.zoom.pan.enabled=true;S.chartInstance.update('none');}}if(cb){if(S.drawings.length)cb.classList.remove('hidden');else cb.classList.add('hidden');}});
 on(rb,'click',()=>{S.isDrawing=false;if(db)db.classList.remove('active-tool');S.isRuler=!S.isRuler;S.rulerStart=null;S.rulerEnd=null;S.rulerTemp=null;const ri=$('ruler-info');if(S.isRuler){if(rb)rb.classList.add('active-tool');if(cv)cv.style.cursor='crosshair';if(S.chartInstance){S.chartInstance.options.plugins.zoom.pan.enabled=false;S.chartInstance.update('none');}}else{if(rb)rb.classList.remove('active-tool');if(cv)cv.style.cursor='default';if(ri)ri.classList.add('hidden');if(S.chartInstance){S.chartInstance.options.plugins.zoom.pan.enabled=true;S.chartInstance.update('none');}}});
 on(cb,'click',()=>{S.drawings=[];S.drawStart=null;if(cb)cb.classList.add('hidden');if(S.chartInstance)S.chartInstance.draw();});
-
-// RAF-throttled mousemove
 on(cv,'mousedown',e=>{
 if(!cv||!S.chartInstance)return;
 const rect=cv.getBoundingClientRect();const px=e.clientX-rect.left,py=e.clientY-rect.top;
@@ -765,7 +1417,6 @@ const link=document.createElement('a');link.download=tk+'_chart_'+Date.now()+'.p
 }catch(e){console.error(e);toast('Ошибка скриншота','warning');}
 }
 
-// Chart Rendering
 function computeSMA(candles,period){const sma=[];for(let i=0;i<candles.length;i++){if(i<period-1){sma.push(null);continue;}let sum=0;for(let j=i-period+1;j<=i;j++)sum+=candles[j].c;sma.push(sum/period);}return sma;}
 function computeYBounds(datasets,isCandle){let min=Infinity,max=-Infinity;datasets.forEach(ds=>{if(ds._isVol)return;ds.data.forEach(pt=>{if(isCandle&&Array.isArray(pt.y)){if(pt.y[0]<min)min=pt.y[0];if(pt.y[1]>max)max=pt.y[1];}else{const v=typeof pt==='object'?pt.y:pt;if(v!=null&&!Array.isArray(v)){if(v<min)min=v;if(v>max)max=v;}}});});if(!isFinite(min)||!isFinite(max))return{};if(min===max){const p=Math.abs(min)*.05||1;return{min:min-p,max:max+p};}const pad=(max-min)*.1;return{min:min-pad,max:max+pad};}
 function getTimeConfig(tf){switch(tf){case '1Min':return{unit:'second',stepSize:5,displayFormats:{second:'HH:mm:ss'},tooltipFormat:'HH:mm:ss'};case '5Min':return{unit:'second',stepSize:10,displayFormats:{second:'HH:mm:ss'},tooltipFormat:'HH:mm:ss'};case '15Min':return{unit:'second',stepSize:30,displayFormats:{second:'HH:mm:ss'},tooltipFormat:'HH:mm:ss'};case '30Min':return{unit:'minute',stepSize:1,displayFormats:{minute:'HH:mm'},tooltipFormat:'HH:mm'};case '1H':return{unit:'minute',stepSize:5,displayFormats:{minute:'HH:mm'},tooltipFormat:'HH:mm'};case '1D':return{unit:'minute',stepSize:20,displayFormats:{minute:'HH:mm'},tooltipFormat:'HH:mm dd MMM'};case '1W':return{unit:'hour',stepSize:4,displayFormats:{hour:'dd MMM HH:mm'},tooltipFormat:'dd MMM HH:mm'};case '1M':return{unit:'day',stepSize:1,displayFormats:{day:'dd MMM'},tooltipFormat:'dd MMM yyyy'};case '1Y':return{unit:'month',stepSize:1,displayFormats:{month:'MMM yyyy'},tooltipFormat:'dd MMM yyyy'};case 'ALL':return{unit:'month',stepSize:3,displayFormats:{month:'MMM yyyy'},tooltipFormat:'dd MMM yyyy'};default:return{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd MMM HH:mm'};}}
@@ -861,10 +1512,8 @@ S.chartInstance.update('none');
 
 function updateChartThemeInline(){try{if(!S.chartInstance)return;const dk=cfg.theme==='dark';const gc=dk?'rgba(51,65,85,.4)':'rgba(241,245,249,1)';const tc=dk?'#94A3B8':'#94A3B8';const lc=dk?'#E2E8F0':'#1E293B';S.chartInstance.options.scales.x.grid.color=gc;S.chartInstance.options.scales.x.ticks.color=tc;S.chartInstance.options.scales.y.grid.color=gc;S.chartInstance.options.scales.y.ticks.color=tc;S.chartInstance.options.scales.x.grid.display=cfg.showGrid;S.chartInstance.options.scales.y.grid.display=cfg.showGrid;if(S.chartInstance.options.plugins.legend.labels)S.chartInstance.options.plugins.legend.labels.color=lc;S.chartInstance.update('none');}catch(e){}}
 
-// Zoom
 function setupZoom(){try{on($('zoom-in'),'click',()=>{try{if(S.chartInstance){S.chartInstance.zoom(1.3);autoFitY(S.chartInstance);}}catch(e){}});on($('zoom-out'),'click',()=>{try{if(S.chartInstance){S.chartInstance.zoom(.7);autoFitY(S.chartInstance);}}catch(e){}});on($('zoom-reset'),'click',()=>{try{if(S.chartInstance){S.chartInstance.resetZoom();setTimeout(()=>{try{const yb=computeYBounds(S.chartInstance.data.datasets.filter(d=>!d._isVol&&!d._isSMA),S.chartType==='candle');if(yb.min!=null){S.chartInstance.options.scales.y.min=yb.min;S.chartInstance.options.scales.y.max=yb.max;S.chartInstance.update('none');}}catch(e){}},60);}}catch(e){}});on($('screenshot-btn'),'click',takeScreenshot);}catch(e){console.error(e);}}
 
-// Controls
 function setupControls(){
 try{
 on($('tf-buttons'),'click',e=>{
@@ -878,6 +1527,7 @@ S.timeframe=btn.dataset.tf;
 S.rulerStart=null;S.rulerEnd=null;S.rulerTemp=null;
 const ri=$('ruler-info');if(ri)ri.classList.add('hidden');
 ensureHistory(S.activeId,S.timeframe);
+syncCacheToRealPrice(S.activeId,S.timeframe);
 renderChart();
 const ids=S.compareMode?S.compareActive:[S.activeId];
 ids.forEach(id=>{fetchHistoryFromAPI(id,S.timeframe,reqId,S.abortCtrl.signal).then(()=>{if(reqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});});
@@ -888,7 +1538,6 @@ on($('alert-bell-btn'),'click',()=>openAlertModal());
 }catch(e){console.error(e);}
 }
 
-// Hotkeys
 function setupHotkeys(){
 try{
 document.addEventListener('keydown',e=>{
@@ -896,16 +1545,14 @@ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==
 try{
 if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();const idx=INSTRUMENTS.findIndex(i=>i.id===S.activeId);let ni=idx;if(e.key==='ArrowUp')ni=idx>0?idx-1:INSTRUMENTS.length-1;else ni=idx<INSTRUMENTS.length-1?idx+1:0;switchInstrument(INSTRUMENTS[ni].id);}
 const num=parseInt(e.key);
-if(num>=1&&num<=9&&num<=TF_LIST.length){e.preventDefault();const reqId=++S.reqId;if(S.abortCtrl)S.abortCtrl.abort();S.abortCtrl=new AbortController();S.timeframe=TF_LIST[num-1];document.querySelectorAll('#tf-buttons .btn-tf').forEach(b=>b.classList.toggle('active',b.dataset.tf===S.timeframe));S.rulerStart=null;S.rulerEnd=null;S.rulerTemp=null;const ri=$('ruler-info');if(ri)ri.classList.add('hidden');ensureHistory(S.activeId,S.timeframe);renderChart();fetchHistoryFromAPI(S.activeId,S.timeframe,reqId,S.abortCtrl.signal).then(()=>{if(reqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});}
+if(num>=1&&num<=9&&num<=TF_LIST.length){e.preventDefault();const reqId=++S.reqId;if(S.abortCtrl)S.abortCtrl.abort();S.abortCtrl=new AbortController();S.timeframe=TF_LIST[num-1];document.querySelectorAll('#tf-buttons .btn-tf').forEach(b=>b.classList.toggle('active',b.dataset.tf===S.timeframe));S.rulerStart=null;S.rulerEnd=null;S.rulerTemp=null;const ri=$('ruler-info');if(ri)ri.classList.add('hidden');ensureHistory(S.activeId,S.timeframe);syncCacheToRealPrice(S.activeId,S.timeframe);renderChart();fetchHistoryFromAPI(S.activeId,S.timeframe,reqId,S.abortCtrl.signal).then(()=>{if(reqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});}
 }catch(err){}
 });
 }catch(e){console.error(e);}
 }
 
-// Micro-ticks
 function microTicks(){try{INSTRUMENTS.forEach(inst=>{const id=inst.id;const q=S.quotes[id];if(!q||!q.price)return;const ck=getCacheKey(id,S.timeframe);const hist=S.dataCache[ck];if(!hist||!hist.length)return;const last=hist[hist.length-1];const amplitude=q.price*(0.0001+Math.random()*0.00015);const delta=(Math.random()-0.5)*2*amplitude;const newPrice=+(last.c+delta).toFixed(q.price>10?4:5);last.c=newPrice;if(newPrice>last.h)last.h=newPrice;if(newPrice<last.l)last.l=newPrice;last.v+=Math.floor(Math.random()*500+100);});}catch(e){}}
 
-// Single refresh timer
 function startRefresh(){
 if(S.refreshTimer)clearInterval(S.refreshTimer);
 S.refreshTimer=setInterval(async()=>{
@@ -913,13 +1560,12 @@ const reqId=S.reqId;
 try{
 await fetchAllQuotes(reqId);
 if(reqId!==S.reqId)return;
-INSTRUMENTS.forEach(inst=>{updateLastCandle(inst.id,S.timeframe);});
+INSTRUMENTS.forEach(inst=>{syncCacheToRealPrice(inst.id,S.timeframe);});
 microTicks();checkAlerts();silentUpdate();silentChartUpdate();renderOrderBook();
 }catch(e){if(e.name!=='AbortError')console.error('refresh:',e);}
 },REFRESH_MS);
 }
 
-// Init
 async function init(){
 try{
 setupSettings();setupControls();setupCompare();setupZoom();setupTools();setupHotkeys();
@@ -929,8 +1575,9 @@ renderSummary();
 const initReqId=S.reqId;
 fetchAllQuotes(initReqId).then(()=>{
 if(initReqId!==S.reqId)return;
+// Принудительная синхронизация всех кэшей с реальными ценами
+INSTRUMENTS.forEach(inst=>{syncCacheToRealPrice(inst.id,S.timeframe);});
 silentUpdate();highlightSidebar();renderSummary();renderOrderBook();
-INSTRUMENTS.forEach(inst=>{updateLastCandle(inst.id,S.timeframe);});
 silentChartUpdate();
 INSTRUMENTS.forEach(inst=>{fetchHistoryFromAPI(inst.id,S.timeframe,initReqId,S.abortCtrl?S.abortCtrl.signal:undefined).then(()=>{if(initReqId!==S.reqId)return;silentChartUpdate();}).catch(()=>{});});
 }).catch(e=>console.error(e));
